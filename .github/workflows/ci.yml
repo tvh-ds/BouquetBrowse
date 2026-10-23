@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, 'codex/**']
+    branches: [main]
   pull_request:
     branches: [main]
 permissions:
@@ -64,6 +64,7 @@ jobs:
       - run: npm run check && npm audit --omit=dev --audit-level=high && npm run build
         working-directory: apps/web
       - run: npx playwright install --with-deps chromium
+        timeout-minutes: 5
         working-directory: apps/web
       - run: npm run test:e2e
         working-directory: apps/web
