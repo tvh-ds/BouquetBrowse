@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { validOrigin } from "@/lib/request-origin";
 const base = process.env.API_URL || "http://127.0.0.1:8000";
 function localDemo(request: NextRequest) {
-  if (
-    process.env.APP_MODE !== "pilot" &&
-    !["localhost", "127.0.0.1", "[::1]"].includes(request.nextUrl.hostname)
-  )
-    return false;
-  return true;
+  if (process.env.APP_MODE === "pilot") return true;
+  // Standalone Next uses its bind address for nextUrl; the browser's original
+  // Host is the loopback boundary, independently checked for mutation origins.
+  return /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(
+    request.headers.get("host") || "",
+  );
 }
 async function handle(
   request: NextRequest,
