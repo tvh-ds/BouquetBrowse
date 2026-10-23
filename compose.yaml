@@ -1,0 +1,61 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: bouquet
+      POSTGRES_PASSWORD: bouquet-local-only
+      POSTGRES_DB: bouquetbrowse
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bouquet -d bouquetbrowse"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  api:
+    build: {context: ., dockerfile: apps/api/Dockerfile}
+    env_file: [{path: .env, required: false}]
+    environment:
+      APP_MODE: ${APP_MODE:-demo}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://bouquet:bouquet-local-only@db:5432/bouquetbrowse}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-localhost-proxy-demo-token}
+      MEDIA_DIR: /app/.data/media
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: ["media-data:/app/.data/media"]
+    depends_on: {db: {condition: service_healthy}}
+    healthcheck:
+      test: ["CMD", "/app/apps/api/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  worker:
+    build: {context: ., dockerfile: apps/api/Dockerfile}
+    env_file: [{path: .env, required: false}]
+    environment:
+      APP_MODE: ${APP_MODE:-demo}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://bouquet:bouquet-local-only@db:5432/bouquetbrowse}
+      MEDIA_DIR: /app/.data/media
+    command: ["/app/apps/api/.venv/bin/python", "-m", "bouquetbrowse.worker", "--schedule"]
+    volumes: ["media-data:/app/.data/media"]
+    depends_on: {api: {condition: service_healthy}}
+  web:
+    build: {context: ., dockerfile: apps/web/Dockerfile}
+    environment:
+      APP_MODE: ${APP_MODE:-demo}
+      API_URL: http://api:8000
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3000}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-localhost-proxy-demo-token}
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: {api: {condition: service_healthy}}
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    ports: ["80:80", "443:443"]
+    environment: {PUBLIC_HOST: "${PUBLIC_HOST:-localhost}"}
+    volumes: ["./deploy/Caddyfile:/etc/caddy/Caddyfile:ro", "caddy-data:/data"]
+    depends_on: [web]
+volumes:
+  postgres-data:
+  media-data:
+  caddy-data:
