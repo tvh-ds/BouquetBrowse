@@ -1,0 +1,11 @@
+{
+  "asset": "demo-golden.png",
+  "generated": true,
+  "fictional_demo": true,
+  "generator": "OpenAI built-in image_gen.imagegen",
+  "generation_date": "2026-10-23",
+  "prompt": "Use case: product-mockup\nAsset type: fictional demo bouquet catalog photo for BouquetBrowse.\nPrimary request: a photorealistic golden sunflower and cream daisy bouquet in cream paper.\nScene/backdrop: seamless warm ivory studio backdrop and tabletop.\nSubject: one complete hand-tied bouquet of golden sunflowers and small cream daisies, with restrained green foliage, wrapped in cream florist paper.\nStyle/medium: high quality florist editorial product photography, natural botanical texture.\nComposition/framing: portrait 3:4 image, entire bouquet including wrapping and tied stem ends visible with comfortable margins, a gentle three-quarter view.\nLighting/mood: soft natural window light, delicate shadows, calm and refined.\nConstraints: fictional demonstration asset, no seller or inventory claims; no people, hands, text, logos, watermarks, price labels or extraneous props.",
+  "transparent_background": false,
+  "intended_use": "Fictional BouquetBrowse demonstration imagery. Does not depict or substantiate any real seller, inventory, price, availability or product configuration.",
+  "processing": "Unmodified generated PNG, copied into project workspace."
+}

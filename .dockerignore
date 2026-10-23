@@ -1,0 +1,14 @@
+.git
+.data
+.env
+.env.*
+**/node_modules
+**/.next
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/test-results
+.impeccable
+private-data
+models
