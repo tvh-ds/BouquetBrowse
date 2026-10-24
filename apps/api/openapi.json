@@ -644,6 +644,44 @@
         }
       }
     },
+    "/v1/admin/pages/preview": {
+      "post": {
+        "summary": "Preview Public Page",
+        "operationId": "preview_public_page_v1_admin_pages_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicPageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPagePreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/admin/imports": {
       "post": {
         "summary": "Import Posts",
@@ -1961,6 +1999,50 @@
           "evidence"
         ],
         "title": "PriceView"
+      },
+      "PublicPagePreview": {
+        "properties": {
+          "parser_version": {
+            "type": "string",
+            "title": "Parser Version"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "draft": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Draft"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "parser_version",
+          "warnings",
+          "draft"
+        ],
+        "title": "PublicPagePreview"
+      },
+      "PublicPageRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PublicPageRequest"
       },
       "ReviewDecision": {
         "properties": {

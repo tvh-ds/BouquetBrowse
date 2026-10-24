@@ -35,7 +35,15 @@ from .models import (
 from .pipeline import digest, enqueue, ingest, review_listing
 from .providers import CapabilityError
 from .responses import CatalogView, ComparisonView, DetailView, FacetsView, SessionView, SimilarView
-from .schemas import ImportBatch, LoginBody, ReviewDecision, SyncBody, TakedownBody
+from .schemas import (
+    ImportBatch,
+    LoginBody,
+    PublicPagePreview,
+    PublicPageRequest,
+    ReviewDecision,
+    SyncBody,
+    TakedownBody,
+)
 from .seed import seed_demo
 
 logger = logging.getLogger("bouquetbrowse")
@@ -399,6 +407,13 @@ def request_key(value):
     if not value or len(value) > 160 or not all(char.isalnum() or char in "-_.:" for char in value):
         raise HTTPException(422, detail="Supply an Idempotency-Key of 1–160 letters, digits or -_.: characters.")
     return value
+
+
+@app.post("/v1/admin/pages/preview", dependencies=[Depends(require_admin)], response_model=PublicPagePreview)
+def preview_public_page(body: PublicPageRequest):
+    from .public_pages import collect_page
+
+    return collect_page(body.url)
 
 
 @app.post("/v1/admin/imports", dependencies=[Depends(require_admin)])

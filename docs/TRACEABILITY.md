@@ -16,6 +16,7 @@ Status: **implemented** means baseline code and fixture behavior; **configured**
 | Strict seller-balanced cohorts and sparse samples | Implemented domain rules, independent pool, reproducible snapshots, exclusions; no budget bias |
 | Advertised price history | Implemented evidence-linked observations; synthetic histories labeled; no invented market trends |
 | Source acquisition | Configured official clients and actionable disabled states; actual platform feasibility remains external |
+| Anonymous public post collection | Implemented admin URL preview → editable import draft; bounded Threads/Instagram HTML and Threads share redirects; one live Threads post parsed, broad coverage unvalidated |
 | Jobs, retries, lease recovery, idempotency | Implemented, tested; single bounded worker; large-scale concurrency not load-tested |
 | Deduplication/configuration identity | Exact IDs/hashes, same-seller explicit configuration keys; near-duplicate auto merges deliberately review-only/deferred |
 | Media validation and private storage | Implemented pinned DNS/host allowlists/limits, processing and Supabase REST storage; no arbitrary website fetching |

@@ -42,6 +42,13 @@ def capability_status():
             "detail": "Paste attributable captions and explicit seller/location information. Commercial fields enter review.",
         },
         {
+            "id": "public-pages",
+            "name": "Public post HTML preview",
+            "enabled": True,
+            "state": "manual_preview",
+            "detail": "Collect individual public Threads/Instagram post URLs in Import. Anonymous HTML only; source restrictions may prevent collection. Complete missing facts and review before publication.",
+        },
+        {
             "id": "threads",
             "name": "Threads keyword discovery",
             "enabled": bool(s.threads_access_token and s.threads_search_approved),

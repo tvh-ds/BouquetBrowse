@@ -97,6 +97,8 @@ export function Studio({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [text, setText] = useState(sample);
+  const [pageUrl, setPageUrl] = useState("");
+  const [pageWarnings, setPageWarnings] = useState<string[]>([]);
   const load = useCallback(async () => {
     try {
       const result = await request<{ items: Detail[] }>("/v1/admin/reviews");
@@ -240,6 +242,69 @@ export function Studio({
         )}
         {tab === "imports" && (
           <section className="studio-section">
+            <h2>{vi ? "Đọc bài đăng công khai" : "Collect a public post"}</h2>
+            <p className="studio-note">
+              {vi
+                ? "Dán URL của một bài đăng Threads hoặc Instagram. Đọc trang không cần token API; trang yêu cầu đăng nhập hoặc chặn truy cập sẽ báo lỗi. Kiểm tra chú thích, ảnh, ngày đăng, người bán và quyền sử dụng trước khi nhập."
+                : "Paste an individual Threads or Instagram post URL. No API token is needed for public HTML; login walls and access restrictions produce an error. Verify caption, images, publication date, seller details, and permitted use before importing."}
+            </p>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                setPageWarnings([]);
+                setText("");
+                void perform(
+                  async () => {
+                    const result = await request<{
+                      draft: Record<string, unknown>;
+                      warnings: string[];
+                    }>("/v1/admin/pages/preview", { url: pageUrl });
+                    setText(JSON.stringify({ posts: [result.draft] }, null, 2));
+                    setPageWarnings(result.warnings);
+                  },
+                  vi
+                    ? "Đã đọc trang. Bổ sung các trường còn thiếu trong bản nháp bên dưới trước khi nhập."
+                    : "Page collected. Complete missing fields in the draft below before importing.",
+                );
+              }}
+            >
+              <label className="form-field" htmlFor="public-page-url">
+                <span>{vi ? "URL bài đăng công khai" : "Public post URL"}</span>
+                <input
+                  id="public-page-url"
+                  type="url"
+                  required
+                  maxLength={2048}
+                  value={pageUrl}
+                  onChange={(event) => setPageUrl(event.target.value)}
+                  placeholder="https://www.threads.com/@seller/post/..."
+                />
+              </label>
+              <div className="form-actions">
+                <button
+                  className="button secondary"
+                  disabled={busy}
+                  type="submit"
+                >
+                  {busy
+                    ? vi
+                      ? "Đang xử lý…"
+                      : "Working…"
+                    : vi
+                      ? "Đọc trang & tạo bản nháp"
+                      : "Collect page & draft"}
+                </button>
+              </div>
+            </form>
+            {pageWarnings.length > 0 && (
+              <div role="status">
+                <ul>
+                  {pageWarnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <h2>
               {vi
                 ? "Từ bài đăng đến dữ liệu có cấu trúc."
