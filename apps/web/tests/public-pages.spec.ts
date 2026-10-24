@@ -25,7 +25,7 @@ test("public-page preview reports restrictions and creates an editable draft", a
   await page
     .getByRole("button", { name: "Collect page & draft", exact: true })
     .click();
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "restricted anonymous access",
   );
   await expect(
