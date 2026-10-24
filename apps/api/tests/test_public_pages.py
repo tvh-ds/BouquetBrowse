@@ -221,3 +221,13 @@ def test_untrusted_metadata_shapes_and_login_identity():
         )
     with pytest.raises(CapabilityError):
         pages.parse_page('<script type="application/ld+json">{"@type":42}</script>', URL)
+
+
+def test_manual_page_collection_cannot_queue_discovery(client, admin_headers):
+    response = client.post(
+        "/v1/admin/sources/public-pages/sync",
+        headers={**admin_headers, "Idempotency-Key": "manual-cannot-sync"},
+        json={"query": "hoa"},
+    )
+    assert response.status_code == 409
+    assert "individual public" in response.json()["error"]["message"]

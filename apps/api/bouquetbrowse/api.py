@@ -446,7 +446,7 @@ def sync_source(
     source_id: str, body: SyncBody, idempotency_key: str | None = Header(None), db: Session = Depends(get_db)
 ):
     capability = next((c for c in capability_status() if c["id"] == source_id), None)
-    if not capability or not capability["enabled"] or source_id == "operator":
+    if not capability or not capability["enabled"] or source_id in {"operator", "public-pages"}:
         raise CapabilityError(capability["detail"] if capability else "Unsupported source adapter.")
     key = request_key(idempotency_key)
     job = enqueue(db, "sync", {"source": source_id, **body.model_dump()}, f"sync:{key}")

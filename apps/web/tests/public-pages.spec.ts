@@ -8,6 +8,7 @@ test("public-page preview reports restrictions and creates an editable draft", a
   await page
     .getByRole("button", { name: "Catalog studio demo", exact: true })
     .click();
+  await expect(page).toHaveURL("/");
   await page.goto("/admin");
   await page.getByRole("tab", { name: "Import", exact: true }).click();
   const input = page.getByRole("textbox", {

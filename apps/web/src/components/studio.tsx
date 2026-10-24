@@ -576,21 +576,32 @@ export function Studio({
                   </span>
                 </div>
                 <p>{source.detail}</p>
-                <button
-                  className="button outline"
-                  disabled={busy || !source.enabled || source.id === "operator"}
-                  onClick={() =>
-                    void perform(
-                      () =>
-                        request(`/v1/admin/sources/${source.id}/sync`, {
-                          query: "bó hoa Hà Nội",
-                        }),
-                      "Source sync queued.",
-                    )
-                  }
-                >
-                  {vi ? "Đồng bộ" : "Sync"}
-                </button>
+                {source.id === "public-pages" ? (
+                  <button
+                    className="button outline"
+                    onClick={() => setTab("imports")}
+                  >
+                    {vi ? "Mở nhập dữ liệu" : "Open import"}
+                  </button>
+                ) : (
+                  <button
+                    className="button outline"
+                    disabled={
+                      busy || !source.enabled || source.id === "operator"
+                    }
+                    onClick={() =>
+                      void perform(
+                        () =>
+                          request(`/v1/admin/sources/${source.id}/sync`, {
+                            query: "bó hoa Hà Nội",
+                          }),
+                        "Source sync queued.",
+                      )
+                    }
+                  >
+                    {vi ? "Đồng bộ" : "Sync"}
+                  </button>
+                )}
               </div>
             ))}
           </section>
