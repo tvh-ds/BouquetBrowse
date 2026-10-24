@@ -38,6 +38,8 @@ The API starts and seeds the localhost demo. To process a single job: `uv run --
 
 ## Try the complete workflow
 
+For a real public post, open Studio → Import → **Collect a public post**. Paste a Threads post/share link or Instagram post URL, collect an editable draft, and complete its missing seller/date fields before importing. This anonymous HTML collector needs no API token; source access restrictions can still prevent collection. See [public-page collector](docs/PUBLIC-PAGE-COLLECTOR.md).
+
 1. Enter the catalog studio demo, open Import and edit the provided JSON. Explicitly set the content-use confirmation to true for your own permitted content.
 2. Import with a unique source ID. The worker extracts caption facts; the listing appears in Reviews.
 3. Inspect the exact price and size evidence, correct or accept the extraction, then publish.

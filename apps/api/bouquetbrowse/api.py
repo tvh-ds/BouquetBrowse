@@ -35,7 +35,15 @@ from .models import (
 from .pipeline import digest, enqueue, ingest, review_listing
 from .providers import CapabilityError
 from .responses import CatalogView, ComparisonView, DetailView, FacetsView, SessionView, SimilarView
-from .schemas import ImportBatch, LoginBody, ReviewDecision, SyncBody, TakedownBody
+from .schemas import (
+    ImportBatch,
+    LoginBody,
+    PublicPagePreview,
+    PublicPageRequest,
+    ReviewDecision,
+    SyncBody,
+    TakedownBody,
+)
 from .seed import seed_demo
 
 logger = logging.getLogger("bouquetbrowse")
@@ -401,6 +409,13 @@ def request_key(value):
     return value
 
 
+@app.post("/v1/admin/pages/preview", dependencies=[Depends(require_admin)], response_model=PublicPagePreview)
+def preview_public_page(body: PublicPageRequest):
+    from .public_pages import collect_page
+
+    return collect_page(body.url)
+
+
 @app.post("/v1/admin/imports", dependencies=[Depends(require_admin)])
 def import_posts(body: ImportBatch, idempotency_key: str | None = Header(None), db: Session = Depends(get_db)):
     key = request_key(idempotency_key)
@@ -431,7 +446,7 @@ def sync_source(
     source_id: str, body: SyncBody, idempotency_key: str | None = Header(None), db: Session = Depends(get_db)
 ):
     capability = next((c for c in capability_status() if c["id"] == source_id), None)
-    if not capability or not capability["enabled"] or source_id == "operator":
+    if not capability or not capability["enabled"] or source_id in {"operator", "public-pages"}:
         raise CapabilityError(capability["detail"] if capability else "Unsupported source adapter.")
     key = request_key(idempotency_key)
     job = enqueue(db, "sync", {"source": source_id, **body.model_dump()}, f"sync:{key}")

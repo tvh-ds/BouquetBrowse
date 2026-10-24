@@ -87,6 +87,16 @@ class ImportBatch(StrictModel):
     posts: list[ImportPost] = Field(min_length=1, max_length=100)
 
 
+class PublicPageRequest(StrictModel):
+    url: str = Field(min_length=1, max_length=2048)
+
+
+class PublicPagePreview(StrictModel):
+    parser_version: str
+    warnings: list[str]
+    draft: dict
+
+
 class ReviewDecision(StrictModel):
     decision: Literal["accept", "correct", "reject"]
     reason: str = Field(min_length=3, max_length=1000)

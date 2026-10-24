@@ -276,6 +276,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/admin/pages/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Preview Public Page */
+    post: operations["preview_public_page_v1_admin_pages_preview_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/admin/imports": {
     parameters: {
       query?: never;
@@ -705,6 +722,22 @@ export interface components {
       };
     } & {
       [key: string]: unknown;
+    };
+    /** PublicPagePreview */
+    PublicPagePreview: {
+      /** Parser Version */
+      parser_version: string;
+      /** Warnings */
+      warnings: string[];
+      /** Draft */
+      draft: {
+        [key: string]: unknown;
+      };
+    };
+    /** PublicPageRequest */
+    PublicPageRequest: {
+      /** Url */
+      url: string;
     };
     /** ReviewDecision */
     ReviewDecision: {
@@ -1301,6 +1334,39 @@ export interface operations {
         };
         content: {
           "application/json": unknown;
+        };
+      };
+    };
+  };
+  preview_public_page_v1_admin_pages_preview_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PublicPageRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicPagePreview"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
