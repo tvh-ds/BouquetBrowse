@@ -26,9 +26,12 @@ The newer conversation/discovery delivery is tracked in THREADS-DISCOVERY.md. It
 | Cost budget/usage ledger | Implemented conservative reservations/circuit breaker; paid measurements not run |
 | Operational status | Admin job/source/cost/coverage views, request IDs and health endpoints; external alert delivery deferred until deployment |
 | Docker and CI | Implemented locked dependencies, unit/PG/browser/build/clean-start checks |
-| Backups/private deployment | Runbook and local backup utility; paid VM, production DNS/credentials, restore drill and real monitoring pending |
+| Backups/private deployment | Separate checksummed DB/managed-media exports, deletion ledger/replay and isolated restore tooling; fictional SQLite recovery exercised. Real PostgreSQL/media recovery, paid infrastructure and production credentials remain pending |
 | Evaluation/coverage goals | Protocol recorded, no real sample or quality metrics invented |
 | V1 customer reference uploads, seller claims, saved searches | Deferred |
+| Local Threads graphs and conversation-aware offers | Implemented modules 10–17; private captured message graph, bounded browser/frontier, independent offer recognition and review. Live collection/quality evaluation wait for the user's command |
+| Provisional catalog, mixed composition and digests | Implemented with retained-evidence visibility, flower ANY/ALL, private buyer context, seller facts and source-linked daily projections |
+| Pilot release/recurring startup | Audited exact-configuration proof gates and disabled Windows sign-in tasks implemented; real proofs absent and no task registered or enabled |
 | Checkout, learned ranking, forecasting, training, warehouse | Deferred |
 
 Initial baseline is one coordinated module branch codex/00-bootstrap. Subsequent modules must replace fixtures and close these external-validation gaps with measured evidence, not relabel demonstrations as live capability.

@@ -69,12 +69,14 @@ app = FastAPI(
 from .digest_api import router as digest_router  # noqa: E402
 from .discovery_api import router as discovery_router  # noqa: E402
 from .offer_api import router as offer_router  # noqa: E402
+from .operations_api import router as operations_router  # noqa: E402
 from .pilot_api import router as pilot_router  # noqa: E402
 
 app.include_router(discovery_router)
 app.include_router(offer_router)
 app.include_router(digest_router)
 app.include_router(pilot_router)
+app.include_router(operations_router)
 
 
 @app.middleware("http")
@@ -666,6 +668,9 @@ def takedown(
     if not listing:
         raise HTTPException(404, detail="Listing not found.")
     listing.state = "withdrawn"
+    from .retention import ledger
+
+    ledger(db, "listing", listing.id, "takedown")
     record = TakedownRequest(listing_id=listing.id, reason=body.reason, actor=user.id, idempotency_key=key)
     db.add(record)
     enqueue(db, "purge", {"listing_id": listing.id}, f"purge:{listing.id}")
@@ -678,7 +683,7 @@ def overview(db: Session = Depends(get_db)):
     month = utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     spend = db.scalar(
         select(func.coalesce(func.sum(CostEntry.amount_usd), 0)).where(
-            CostEntry.created_at >= month, CostEntry.state.in_(["reserved", "settled"])
+            CostEntry.created_at >= month, CostEntry.state.in_(["reserved", "settled", "uncertain"])
         )
     )
     return {

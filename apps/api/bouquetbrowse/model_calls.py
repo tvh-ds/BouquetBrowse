@@ -114,6 +114,10 @@ def invoke_once(model, request, invoke, reservation_usd=0.10):
             .limit(1)
         )
         if previous and previous.state == "succeeded":
+            from .retention import receipt_permitted
+
+            if not receipt_permitted(db, previous):
+                raise CapabilityError("Cached source evidence is no longer usable.", "source_removed")
             if previous.result is None or aware(previous.retention_until) <= utcnow():
                 raise CapabilityError("Cached model evidence expired; request explicit reprocessing.", "call_expired")
             return previous.result, previous.usage
@@ -125,6 +129,10 @@ def invoke_once(model, request, invoke, reservation_usd=0.10):
         )
         if shared and shared.scope_key != scope.key:
             if shared.state == "succeeded" and shared.result is not None and aware(shared.retention_until) > utcnow():
+                from .retention import receipt_permitted
+
+                if not receipt_permitted(db, shared):
+                    raise CapabilityError("Cached source evidence is no longer usable.", "source_removed")
                 return shared.result, shared.usage
             if shared.state in {"dispatched", "uncertain", "failed"} and not shared.replay_authorized:
                 raise CapabilityError(
@@ -160,7 +168,15 @@ def invoke_once(model, request, invoke, reservation_usd=0.10):
                 )
                 db.add(call)
                 db.flush()
+                from .operations_models import CallDependency
+
+                for media_id in sorted({v["media_id"] for v in request.get("views", []) if v.get("media_id")})[:12]:
+                    db.add(CallDependency(call_id=call.id, kind="media", reference_id=media_id))
             call_id = call.id
+            from .retention import receipt_permitted
+
+            if not receipt_permitted(db, call):
+                raise CapabilityError("Source evidence is no longer usable.", "source_removed")
             # Commit dispatch before the request. A crash here must not repeat it automatically.
             call.state = "dispatched"
             db.commit()
@@ -171,7 +187,7 @@ def invoke_once(model, request, invoke, reservation_usd=0.10):
     except Exception as exc:
         with database.SessionLocal() as db:
             call = db.get(ModelCall, call_id)
-            call.state = "uncertain"
+            call.state = "removed" if call.state == "removed" else "uncertain"
             db.get(CostEntry, call.cost_id).state = "uncertain"
             db.commit()
         raise CapabilityError(
@@ -179,12 +195,17 @@ def invoke_once(model, request, invoke, reservation_usd=0.10):
         ) from exc
     with database.SessionLocal() as db:
         call = db.get(ModelCall, call_id)
-        # Recording a receipt is allowed after cancellation; publishing its result is not.
-        call.result, call.usage, call.state = result, usage, "succeeded"
+        from .retention import receipt_permitted
+
+        permitted = receipt_permitted(db, call)
+        # Cancellation can retain an audit receipt; deletion must not resurrect content.
+        call.result, call.usage, call.state = (result, usage, "succeeded") if permitted else (None, {}, "removed")
         cost = db.get(CostEntry, call.cost_id)
         cost.amount_microusd = microusd(actual_usd)
         cost.amount_usd, cost.usage, cost.state = cost.amount_microusd / 1_000_000, usage, "settled"
         db.commit()
+    if not permitted:
+        raise CapabilityError("Source evidence was deleted while the call was in flight.", "source_removed")
     return result, usage
 
 

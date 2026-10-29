@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     media_dir: Path = ROOT / ".data" / "media"
     public_origin: str = "http://localhost:3000"
     discovery_enabled: bool = False
+    recurring_enabled: bool = False
     discovery_profile_dir: Path = ROOT / ".data" / "threads-profile"
     planner_model: str = "gpt-6.1-sol"
     discovery_run_budget_usd: float = 0.35

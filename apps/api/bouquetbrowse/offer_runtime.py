@@ -208,6 +208,15 @@ class OfferServices:
                 for kind in analysis.errors:
                     reviews.append(exception(db, offer, kind))
                 if reviews:
+                    from .discovery import add_frontier
+                    from .local_schedule import next_check
+                    from .models import SourcePost
+
+                    source = db.get(SourcePost, offer.anchor_id)
+                    if source.url:
+                        frontier = add_frontier(db, "post", source.url, "refresh", "offer_evidence_gap")
+                        frontier.evidence_gaps = sorted({r.kind for r in reviews})
+                        frontier.queue, frontier.due_at = "refresh", next_check(frontier)
                     execution.state, offer.state = "review", "review"
                     db.commit()
                     return {"waiting_review": True, "review_id": reviews[0].id}

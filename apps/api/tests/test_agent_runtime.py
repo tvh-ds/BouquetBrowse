@@ -219,6 +219,20 @@ def test_postgres_checkpoints_survive_new_connections(db):
         assert invoke_graph(discovery_graph(services, saver), execution_id)["action_count"] == 1
         saver.delete_thread(execution_id)
     assert services.calls.count("load_limits") == 1
+    from bouquetbrowse.executions import create_execution
+
+    removed = create_execution(db, "discovery", "removed-checkpoint", {}, "fictional")
+    removed.state = "withdrawn"
+    db.commit()
+
+    class Stopped:
+        def stage(self, name, state):
+            return {"stop": True} if name == "select_task" else {}
+
+    with postgres_checkpointer(url) as saver:
+        with pytest.raises(CapabilityError, match="Deleted execution"):
+            invoke_graph(discovery_graph(Stopped(), saver), removed.id)
+        assert saver.get_tuple({"configurable": {"thread_id": removed.id}}) is None
 
 
 def test_postgres_concurrent_reservations_cannot_overbook(db, monkeypatch):

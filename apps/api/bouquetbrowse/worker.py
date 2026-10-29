@@ -45,9 +45,15 @@ def claim_job():
     return lease.job_id if lease else None
 
 
-def purge_listing(db, listing_id):
+def purge_listing(db, listing_id, extended=True):
     listing = db.get(Listing, listing_id)
     if not listing:
+        return
+    if extended:
+        from .retention import scrub_versions
+
+        versions = list(db.scalars(select(ListingSource.version_id).where(ListingSource.listing_id == listing_id)))
+        scrub_versions(db, versions, reason="takedown", listing_ids=[listing_id])
         return
     run_ids = set(db.scalars(select(CohortMember.run_id).where(CohortMember.listing_id == listing_id)).all()) | set(
         db.scalars(select(CohortRun.id).where(CohortRun.listing_id == listing_id)).all()
@@ -134,6 +140,8 @@ def handle_job(db, job, prepared=None):
     if job.kind == "prepare-media":
         asset = db.get(MediaAsset, p["media_id"])
         if not asset or asset.state == "removed":
+            if prepared:
+                enqueue(db, "delete-media", {"storage_key": prepared[0]}, f"orphan-media:{prepared[0]}")
             return {"removed": True}
         key, metadata = prepared
         for name, value in metadata.items():
@@ -226,6 +234,9 @@ def handle_job(db, job, prepared=None):
         cursor.checkpoint, cursor.last_success_at = {**checkpoint, "unregistered_or_unusable": skipped}, utcnow()
         return {"imported": len(imported), "skipped": skipped, "checkpoint": checkpoint}
     if job.kind == "retention":
+        from .retention import expire
+
+        expire(db)
         now = utcnow()
         for version in db.scalars(select(PostVersion).where(PostVersion.retention_until < now)).all():
             version.caption, version.payload = "", {"expired": True}
@@ -250,6 +261,11 @@ def handle_job(db, job, prepared=None):
         ).all():
             purge_listing(db, listing.id)
         return {"retention_checked": True}
+    if job.kind == "delete-checkpoints":
+        from .retention import delete_checkpoints
+
+        delete_checkpoints(db, p["execution_id"])
+        return {"deleted": True}
     raise CapabilityError("Unknown job type", "unsupported_job")
 
 
@@ -356,6 +372,7 @@ def run_once(kinds=None, exclude_kinds=None):
     lease = claim(SessionLocal, kinds, exclude_kinds)
     if not lease:
         return False
+    prepared, job = None, None
     try:
         with (
             keep_alive(lease, SessionLocal),
@@ -381,6 +398,10 @@ def run_once(kinds=None, exclude_kinds=None):
                 )
                 db.commit()
     except Exception as exc:
+        if job and job.kind == "prepare-media" and prepared:
+            with SessionLocal() as db:
+                enqueue(db, "delete-media", {"storage_key": prepared[0]}, f"orphan-media:{prepared[0]}")
+                db.commit()
         try:
             with SessionLocal() as db:
                 current = guard(db, lease)
@@ -416,6 +437,9 @@ def schedule_due():
     from .adapters import capability_status
 
     with SessionLocal() as db:
+        from .local_schedule import tick
+
+        tick(db)
         now = utcnow()
         enqueue(db, "retention", {}, f"retention:{now.date()}")
         for source in capability_status():
@@ -445,8 +469,26 @@ def main():
     parser.add_argument("--schedule", action="store_true")
     parser.add_argument("--role", choices=["general", "browser", "offer", "scheduler"], default="general")
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO)
+    from logging.handlers import TimedRotatingFileHandler
+
+    from .config import ROOT
+
+    logs = ROOT / ".data" / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    handler = TimedRotatingFileHandler(
+        logs / f"{args.role}.log", when="midnight", backupCount=30, utc=True, encoding="utf-8"
+    )
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[logging.StreamHandler(), handler],
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
     while True:
+        from .local_schedule import heartbeat
+
+        with SessionLocal() as db:
+            heartbeat(db, args.role)
+            db.commit()
         if args.schedule or args.role == "scheduler":
             schedule_due()
         if args.role == "scheduler":
@@ -458,7 +500,7 @@ def main():
         if args.once:
             break
         if not processed:
-            time.sleep(2)
+            time.sleep(30 if args.role == "scheduler" else 2)
 
 
 if __name__ == "__main__":
