@@ -115,6 +115,19 @@ def invoke_once(model, request, invoke, reservation_usd=0.10):
             if previous.result is None or aware(previous.retention_until) <= utcnow():
                 raise CapabilityError("Cached model evidence expired; request explicit reprocessing.", "call_expired")
             return previous.result, previous.usage
+        shared = db.scalar(
+            select(ModelCall)
+            .where(ModelCall.request_hash == request_hash)
+            .order_by(ModelCall.created_at.desc(), ModelCall.attempt.desc())
+            .limit(1)
+        )
+        if shared and shared.scope_key != scope.key:
+            if shared.state == "succeeded" and shared.result is not None and aware(shared.retention_until) > utcnow():
+                return shared.result, shared.usage
+            if shared.state in {"dispatched", "uncertain", "failed"} and not shared.replay_authorized:
+                raise CapabilityError(
+                    "Identical paid work is in flight or uncertain in another execution.", "call_replay_required"
+                )
         if previous and previous.state in {"dispatched", "uncertain", "failed"} and not previous.replay_authorized:
             previous.state = "uncertain" if previous.state == "dispatched" else previous.state
             db.get(CostEntry, previous.cost_id).state = "uncertain"

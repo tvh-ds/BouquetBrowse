@@ -5,6 +5,222 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/v1/admin/discovery/status": {
+      "get": {
+        "summary": "Status",
+        "operationId": "status_v1_admin_discovery_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/discovery/settings": {
+      "patch": {
+        "summary": "Configure",
+        "operationId": "configure_v1_admin_discovery_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/discovery/runs": {
+      "post": {
+        "summary": "Start Run",
+        "operationId": "start_run_v1_admin_discovery_runs_post",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAcceptedView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Runs",
+        "operationId": "runs_v1_admin_discovery_runs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/discovery/runs/{execution_id}": {
+      "get": {
+        "summary": "Run Detail",
+        "operationId": "run_detail_v1_admin_discovery_runs__execution_id__get",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/discovery/runs/{execution_id}/cancel": {
+      "post": {
+        "summary": "Cancel Run",
+        "operationId": "cancel_run_v1_admin_discovery_runs__execution_id__cancel_post",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/discovery/frontier": {
+      "get": {
+        "summary": "Frontier",
+        "operationId": "frontier_v1_admin_discovery_frontier_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "summary": "Health Live",
@@ -2156,6 +2372,46 @@
         ],
         "title": "ReviewDecision"
       },
+      "RunAcceptedView": {
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "title": "Execution Id"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "execution_id",
+          "job_id",
+          "state"
+        ],
+        "title": "RunAcceptedView"
+      },
+      "RunBody": {
+        "properties": {
+          "seed_queries": {
+            "items": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Seed Queries"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RunBody"
+      },
       "SellerView": {
         "properties": {
           "id": {
@@ -2213,6 +2469,45 @@
           "mode"
         ],
         "title": "SessionView"
+      },
+      "SettingsBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "paused"
+        ],
+        "title": "SettingsBody"
+      },
+      "SettingsView": {
+        "properties": {
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          },
+          "settings_version": {
+            "type": "integer",
+            "title": "Settings Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "paused",
+          "settings_version"
+        ],
+        "title": "SettingsView"
       },
       "SimilarView": {
         "properties": {
@@ -2281,6 +2576,56 @@
           "version_id"
         ],
         "title": "SourceView"
+      },
+      "StatusView": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          },
+          "settings_version": {
+            "type": "integer",
+            "title": "Settings Version"
+          },
+          "postgres": {
+            "type": "boolean",
+            "title": "Postgres"
+          },
+          "model_configured": {
+            "type": "boolean",
+            "title": "Model Configured"
+          },
+          "browser_installed": {
+            "type": "boolean",
+            "title": "Browser Installed"
+          },
+          "release_gates": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Release Gates"
+          },
+          "publication_enabled": {
+            "type": "boolean",
+            "title": "Publication Enabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enabled",
+          "paused",
+          "settings_version",
+          "postgres",
+          "model_configured",
+          "browser_installed",
+          "release_gates",
+          "publication_enabled"
+        ],
+        "title": "StatusView"
       },
       "SummaryView": {
         "properties": {

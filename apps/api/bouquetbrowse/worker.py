@@ -258,6 +258,10 @@ def prepare_external(job, lease):
     from .leases import guard
 
     p = job.payload
+    if job.kind == "discovery-graph":
+        from .discovery import run_discovery
+
+        return run_discovery(p["execution_id"], lease)
     if job.kind == "sync":
         return discover(p["source"], p.get("query", "bó hoa Hà Nội"), p.get("username"))
     if job.kind == "delete-media":
@@ -341,11 +345,11 @@ def prepare_external(job, lease):
     return None
 
 
-def run_once(kinds=None):
+def run_once(kinds=None, exclude_kinds=None):
     from .leases import claim, guard, keep_alive
     from .model_calls import CallScope, call_scope, microusd
 
-    lease = claim(SessionLocal, kinds)
+    lease = claim(SessionLocal, kinds, exclude_kinds)
     if not lease:
         return False
     try:
@@ -360,7 +364,11 @@ def run_once(kinds=None):
             prepared = prepare_external(job, lease)
             with SessionLocal() as db:
                 current = guard(db, lease)
-                current.result = prepared if current.kind == "delete-media" else handle_job(db, current, prepared)
+                current.result = (
+                    prepared
+                    if current.kind in {"delete-media", "discovery-graph"}
+                    else handle_job(db, current, prepared)
+                )
                 current.state, current.lease_until, current.lease_token, current.last_error = (
                     "succeeded",
                     None,
@@ -376,7 +384,15 @@ def run_once(kinds=None):
                 current.last_error = (
                     str(exc)[:500] if isinstance(exc, CapabilityError) else "Processing failed; inspect the job ID."
                 )
-                if isinstance(exc, CapabilityError) and exc.code in {"call_replay_required", "call_expired"}:
+                if isinstance(exc, CapabilityError) and exc.code in {
+                    "call_replay_required",
+                    "call_expired",
+                    "browser_auth_required",
+                    "discovery_paused",
+                    "checkpoints_not_ready",
+                    "discovery_not_configured",
+                    "browser_busy",
+                }:
                     current.state = "paused"
                 elif retryable and current.attempts < 5:
                     delay = exc.retry_after or [60, 300, 1800, 7200][min(current.attempts - 1, 3)]
@@ -423,12 +439,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--schedule", action="store_true")
+    parser.add_argument("--role", choices=["general", "browser", "offer", "scheduler"], default="general")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     while True:
-        if args.schedule:
+        if args.schedule or args.role == "scheduler":
             schedule_due()
-        processed = run_once()
+        if args.role == "scheduler":
+            processed = False
+        elif args.role == "browser":
+            processed = run_once(kinds=["discovery-graph"])
+        else:
+            processed = run_once(exclude_kinds=["discovery-graph"])
         if args.once:
             break
         if not processed:

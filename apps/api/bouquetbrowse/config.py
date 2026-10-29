@@ -1,4 +1,5 @@
 from functools import lru_cache
+from math import isfinite
 from pathlib import Path
 
 from pydantic import model_validator
@@ -60,8 +61,10 @@ class Settings(BaseSettings):
             raise ValueError("Unknown extraction provider")
         if self.image_embedding_provider not in {"disabled", "siglip"}:
             raise ValueError("Unknown image embedding provider")
-        if self.monthly_model_budget_usd <= 0 or self.per_request_reservation_usd <= 0:
-            raise ValueError("Model spending limits must be positive")
+        if not isfinite(self.monthly_model_budget_usd) or not 0 < self.monthly_model_budget_usd <= 100:
+            raise ValueError("Shared model spending must be positive and no more than $100/month")
+        if not isfinite(self.per_request_reservation_usd) or self.per_request_reservation_usd <= 0:
+            raise ValueError("Request reservations must be positive and finite")
         return self
 
 

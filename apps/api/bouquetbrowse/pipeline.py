@@ -27,6 +27,7 @@ from .models import (
 )
 from .providers import CapabilityError, structured_extract
 from .schemas import ImportPost, ReviewDecision
+from .source_identity import find_source
 
 
 def digest(value):
@@ -70,11 +71,7 @@ def ingest(db, post: ImportPost):
         account = SourceAccount(seller_id=seller.id, platform=post.platform, username=post.username)
         db.add(account)
         db.flush()
-    source = db.scalar(
-        select(SourcePost).where(
-            SourcePost.platform == post.platform, SourcePost.platform_post_id == post.platform_post_id
-        )
-    )
+    source = find_source(db, post.platform, post.platform_post_id, post.source_url)
     if source and source.account_id != account.id:
         raise ValueError("Post identity cannot be reassigned to another seller.")
     if source and source.access_state == "removed":

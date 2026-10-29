@@ -97,7 +97,13 @@ def test_fresh_upgrade_downgrade_upgrade(tmp_path):
 def test_runtime_migration_round_trip(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'runtime.db'}")
     revisions = [
-        revision(name) for name in ["20261023_0001_initial", "20261029_0002_conversations", "20261029_0003_runtime"]
+        revision(name)
+        for name in [
+            "20261023_0001_initial",
+            "20261029_0002_conversations",
+            "20261029_0003_runtime",
+            "20261029_0004_browser",
+        ]
     ]
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
         for item in revisions:

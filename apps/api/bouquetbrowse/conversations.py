@@ -18,6 +18,7 @@ from .conversation_models import (
 from .db import aware, utcnow
 from .models import Listing, ListingSource, PostVersion, SourceAccount, SourcePost
 from .pipeline import digest
+from .source_identity import find_parent, find_source
 
 
 def anchor_quote(db, reference: QuoteReference):
@@ -90,11 +91,7 @@ def record_capture(db, envelope: CaptureEnvelope, acquisition: dict):
             db.add(
                 AccountAlias(account_id=account.id, username=observation.username, evidence={"capture_id": capture.id})
             )
-        post = db.scalar(
-            select(SourcePost).where(
-                SourcePost.platform == "threads", SourcePost.platform_post_id == observation.platform_id
-            )
-        )
+        post = find_source(db, "threads", observation.platform_id, observation.url)
         if post and (post.account_id != account.id or post.access_state == "removed"):
             raise ValueError("Source identity is conflicting or suppressed")
         if not post:
@@ -131,6 +128,8 @@ def record_capture(db, envelope: CaptureEnvelope, acquisition: dict):
                     "media_urls": observation.media_urls,
                     "acquisition": acquisition,
                     "published_at": observation.published_at.isoformat() if observation.published_at else None,
+                    "observed_platform_id": observation.platform_id,
+                    "source_url": observation.url,
                 },
                 retention_until=capture.retention_until,
             )
@@ -152,11 +151,7 @@ def record_capture(db, envelope: CaptureEnvelope, acquisition: dict):
     db.flush()
     # Ancestors can arrive through a different discovery path or a later capture.
     for edge in db.scalars(select(MessageEdge).where(MessageEdge.target_id.is_(None))):
-        edge.target_id = db.scalar(
-            select(SourcePost.id).where(
-                SourcePost.platform == "threads", SourcePost.platform_post_id == edge.target_platform_id
-            )
-        )
+        edge.target_id = find_parent(db, edge.target_platform_id)
     return capture
 
 
