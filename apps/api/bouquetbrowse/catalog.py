@@ -23,13 +23,16 @@ from .models import (
     PostVersion,
     PriceObservation,
     Seller,
+    SourceAccount,
     SourcePost,
     TextEmbedding,
 )
 
 
 def all_listings(db: Session):
-    return db.scalars(select(Listing).where(Listing.state == "published")).all()
+    from .visibility import visible_listings
+
+    return visible_listings(db)
 
 
 def prepare_snapshot(db):
@@ -42,18 +45,25 @@ def prepare_snapshot(db):
         .where(
             PriceObservation.component == "bouquet",
             PriceObservation.superseded.is_(False),
-            PriceObservation.reviewed.is_(True),
             PriceObservation.kind != "previous",
         )
         .order_by(PriceObservation.advertised_at.desc(), PriceObservation.created_at.desc(), PriceObservation.id.desc())
     ).all():
-        prices.setdefault(price.listing_id, price)
+        listing = next((listing for listing in listings if listing.id == price.listing_id), None)
+        if listing and (
+            price.id in listing.attributes.get("accepted_price_ids", [])
+            if "accepted_price_ids" in listing.attributes
+            else price.reviewed
+        ):
+            prices.setdefault(price.listing_id, price)
     availability = {}
     for observation in db.scalars(
         select(AvailabilityObservation).order_by(AvailabilityObservation.created_at.desc())
     ).all():
         availability.setdefault(observation.listing_id, observation)
     posts = {}
+    account_sellers = {account.id: account.seller_id for account in db.scalars(select(SourceAccount))}
+    listing_sellers = {listing.id: listing.seller_id for listing in listings}
     for listing_id, post in db.execute(
         select(ListingSource.listing_id, SourcePost)
         .select_from(ListingSource)
@@ -61,7 +71,8 @@ def prepare_snapshot(db):
         .join(SourcePost, SourcePost.id == PostVersion.post_id)
         .order_by(SourcePost.published_at.desc())
     ).all():
-        posts.setdefault(listing_id, post)
+        if account_sellers.get(post.account_id) == listing_sellers.get(listing_id):
+            posts.setdefault(listing_id, post)
     db.info["catalog_snapshot"] = {
         "ids": {listing.id for listing in listings},
         "sellers": sellers,
@@ -78,7 +89,9 @@ def current_price(db: Session, listing_id: str):
         return snapshot["prices"].get(listing_id)
     statement = select(PriceObservation)
     listing = db.get(Listing, listing_id)
-    if listing and listing.state == "published":
+    if listing and "accepted_price_ids" in listing.attributes:
+        statement = statement.where(PriceObservation.id.in_(listing.attributes["accepted_price_ids"]))
+    elif listing and listing.state in {"published", "provisional"}:
         statement = statement.where(PriceObservation.reviewed.is_(True))
     return db.scalar(
         statement.where(
@@ -111,6 +124,8 @@ def price_json(price):
 
 
 def card(db: Session, listing: Listing):
+    from .visibility import public_attributes, public_composition
+
     seller = db.get(Seller, listing.seller_id)
     price = current_price(db, listing.id)
     snapshot = db.info.get("catalog_snapshot")
@@ -131,7 +146,9 @@ def card(db: Session, listing: Listing):
             select(SourcePost)
             .join(PostVersion, PostVersion.post_id == SourcePost.id)
             .join(ListingSource, ListingSource.version_id == PostVersion.id)
+            .join(SourceAccount, SourceAccount.id == SourcePost.account_id)
             .where(ListingSource.listing_id == listing.id)
+            .where(SourceAccount.seller_id == listing.seller_id)
             .order_by(SourcePost.published_at.desc())
             .limit(1)
         )
@@ -148,7 +165,12 @@ def card(db: Session, listing: Listing):
         "style": listing.style,
         "occasion": listing.occasion,
         "state": listing.state,
-        "attributes": listing.attributes,
+        "attributes": public_attributes(listing),
+        "composition": public_composition(listing),
+        "offer_type": listing.attributes.get("offer_type", "seller_work"),
+        "updating": bool(listing.attributes.get("updating")),
+        "capture_complete": listing.attributes.get("capture_complete"),
+        "evidence_at": listing.attributes.get("evidence_at"),
         "is_demo": listing.is_demo,
         "seller": {
             "id": seller.id,
@@ -164,10 +186,11 @@ def card(db: Session, listing: Listing):
             "lead_days": availability.lead_days if availability else None,
             "delivery": availability.delivery if availability else None,
         },
-        "published_at": aware(post.published_at).isoformat() if post else None,
+        "published_at": aware(post.published_at).isoformat() if post and post.published_at else None,
         "last_checked_at": aware(post.last_seen_at).isoformat() if post else None,
         "source_url": post.url if post else None,
         "source_platform": post.platform if post else None,
+        "source_state": post.access_state if post else None,
     }
 
 
@@ -222,16 +245,27 @@ def catalog(
     sort="recommended",
     cursor=None,
     limit=24,
+    flower_mode="any",
+    reviewed_only=False,
 ):
     listings = prepare_snapshot(db)
     query = normalized_search(q)
     tokens = query.split()
     rows = []
+    from .visibility import flower_types
+
+    requested_flowers = {part.strip() for part in flower.split(",") if part.strip()}
+    if len(requested_flowers) > 12 or flower_mode not in {"any", "all"}:
+        raise ValueError("Choose up to twelve flowers with ANY or ALL matching")
     for listing in listings:
         row = card(db, listing)
         if (
-            flower
-            and row["primary_flower"] != flower
+            requested_flowers
+            and not (
+                requested_flowers <= flower_types(listing)
+                if flower_mode == "all"
+                else requested_flowers & flower_types(listing)
+            )
             or color
             and row["color"] != color
             or district
@@ -241,6 +275,8 @@ def catalog(
             or occasion
             and row["occasion"] != occasion
         ):
+            continue
+        if reviewed_only and not listing.attributes.get("extraction_reviewed"):
             continue
         if delivery is not None and row["availability"]["delivery"] is not delivery:
             continue
@@ -333,7 +369,20 @@ def catalog(
     total = len(rows)
     signature = hashlib.sha256(
         json.dumps(
-            [q, flower, color, district, arrangement, occasion, delivery, min_price, max_price, sort],
+            [
+                q,
+                flower,
+                color,
+                district,
+                arrangement,
+                occasion,
+                delivery,
+                min_price,
+                max_price,
+                sort,
+                flower_mode,
+                reviewed_only,
+            ],
             ensure_ascii=False,
         ).encode()
     ).hexdigest()[:16]
@@ -378,6 +427,13 @@ def similarity(a: Listing, b: Listing):
                         "style": "Similar style",
                     }[name]
                 )
+    from .visibility import flower_types
+
+    a_types, b_types = flower_types(a), flower_types(b)
+    if a_types and b_types:
+        score += 0.12 * len(a_types & b_types) / len(a_types | b_types)
+        if a_types & b_types:
+            reasons.append("Shared supported flower composition")
     return score, reasons
 
 
@@ -407,7 +463,7 @@ def similar(db: Session, target: Listing, limit=12):
         a, b = texts.get(target.current_revision_id), texts.get(listing.current_revision_id)
         semantic = max(0, cosine(a.vector, b.vector)) if a and b and a.model_version == b.model_version else 0
         # Attribute weights total .60; keep full-weight denominator when a modality is absent.
-        score = score * (0.50 / 0.60) + 0.35 * visual + 0.15 * semantic
+        score = score * (0.50 / 0.72) + 0.35 * visual + 0.15 * semantic
         if visual > 0.8:
             reasons.append("Similar image features" if not target.is_demo else "Matching demonstration photo category")
         rows.append(
@@ -434,6 +490,18 @@ def commercial_issues(db: Session, listing: Listing):
     p = current_price(db, listing.id)
     if listing.state != "published":
         reasons.append("Listing is not published")
+    from .visibility import visible
+
+    if not visible(db, listing):
+        reasons.append("Supporting evidence is unavailable")
+    if listing.attributes.get("updating"):
+        reasons.append("New evidence is being processed")
+    if card(db, listing).get("source_state") not in {None, "accessible"}:
+        reasons.append("Original source is currently unavailable")
+    if listing.attributes.get("offer_type") == "recreation_quote":
+        reasons.append("Recreation quotations are outside strict benchmarks")
+    if listing.primary_flower == "mixed" and not listing.attributes.get("composition_reviewed"):
+        reasons.append("Mixed composition requires commercial review")
     if not p:
         reasons.append("No advertised bouquet price")
     else:
@@ -462,6 +530,13 @@ def eligibility(db: Session, target: Listing, candidate: Listing):
         reasons.append("Same seller")
     target_composition = set(target.attributes.get("flower_composition") or [target.primary_flower])
     candidate_composition = set(candidate.attributes.get("flower_composition") or [candidate.primary_flower])
+    if target.primary_flower == "mixed" or candidate.primary_flower == "mixed":
+        if (
+            not target.attributes.get("composition_reviewed")
+            or not candidate.attributes.get("composition_reviewed")
+            or target_composition != candidate_composition
+        ):
+            reasons.append("Mixed composition equivalence is not reviewed")
     if len(target_composition & candidate_composition) / max(1, len(target_composition | candidate_composition)) < 0.6:
         reasons.append("Flower composition differs materially")
     for name, message in [

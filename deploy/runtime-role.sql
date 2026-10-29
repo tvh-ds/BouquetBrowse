@@ -22,7 +22,8 @@ BEGIN
       'offer_claims','taxonomy_terms','discovery_settings','graph_executions',
       'discovery_frontier','action_receipts','model_calls','execution_events',
       'browser_observations','profile_snapshots','offer_analyses','association_reviews',
-      'image_regions','recognition_records','recognition_support')
+      'image_regions','recognition_records','recognition_support','catalog_changes',
+      'daily_digests','digest_members','seller_facts')
   LOOP
     EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.%I TO bouquet_runtime',entry.tablename);
     EXECUTE format('DROP POLICY IF EXISTS runtime_service ON public.%I',entry.tablename);

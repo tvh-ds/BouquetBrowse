@@ -96,6 +96,23 @@ def descendant_of(db, post_id, ancestor_id):
     return False
 
 
+def unique_structural_target(db, offer, post_id):
+    candidates = [
+        o
+        for o in db.scalars(select(OfferOccurrence).where(OfferOccurrence.account_id == offer.account_id))
+        if descendant_of(db, post_id, o.anchor_id)
+    ]
+    nearest = [
+        o
+        for o in candidates
+        if not any(
+            other.id != o.id and other.anchor_id != o.anchor_id and descendant_of(db, other.anchor_id, o.anchor_id)
+            for other in candidates
+        )
+    ]
+    return len(nearest) == 1 and nearest[0].id == offer.id
+
+
 def current_associations(db, offer):
     return list(
         db.scalars(
@@ -112,7 +129,9 @@ def offer_fingerprint(db, offer):
         {
             "offer": offer.id,
             "kind": offer.kind,
-            "associations": [(a.version_id, a.media_id, a.role, a.basis, a.region, a.state) for a in refs],
+            "associations": [
+                (a.version_id, a.media_id, a.role, a.basis, a.region, a.state, a.evidence.get("target")) for a in refs
+            ],
         }
     )
 
@@ -192,6 +211,18 @@ def segment_capture(db, capture_id, configuration):
                 )
             )
         )
+        if any(o.state == "split" for o in existing):
+            for region_offer in existing:
+                if region_offer.slot_key.startswith("region:") and any(
+                    a.version_id != version.id and db.get(PostVersion, a.version_id).post_id == post.id
+                    for a in current_associations(db, region_offer)
+                ):
+                    region_offer.state = "review"
+                    exception(db, region_offer, "region_source_changed")
+                    if region_offer.listing_id:
+                        listing = db.get(Listing, region_offer.listing_id)
+                        listing.attributes = {**listing.attributes, "updating": True}
+            continue
         offer = (
             existing[0]
             if len(existing) == 1
@@ -320,6 +351,12 @@ def evidence_bundle(db, offer):
         "anchor_id": offer.anchor_id,
         "kind": offer.kind,
         "messages": messages,
+        "commercial_targets": [
+            a.evidence["target"] for a in associations if a.role == "commercial_target" and a.state == "accepted"
+        ],
+        "reviewed_product_region": any(
+            a.region and a.basis == "reviewed_region" and a.state == "accepted" for a in associations
+        ),
         "media": [
             {"media_id": a.media_id, "version_id": a.version_id, "role": a.role, "region": a.region}
             for a in associations
@@ -357,12 +394,20 @@ def validate_interpretation(db, offer, result: OfferInterpretation):
         and location_language(by_version[location["version_id"]]["text"])
     ) and not account.capabilities.get("location_reviewed"):
         errors.append("hanoi_service_unresolved")
-    if result.multi_product:
+    if result.multi_product and not bundle["reviewed_product_region"]:
         errors.append("multi_product_review")
     if not bundle["media"]:
         errors.append("image_association_unresolved")
     for field in result.fields:
         if field.field in {"ownership", "location"}:
+            continue
+        if bundle["reviewed_product_region"] and not all(
+            any(
+                ref.version_id == target["version_id"] and ref.quote in target["quote"]
+                for target in bundle["commercial_targets"]
+            )
+            for ref in field.evidence
+        ):
             continue
         if field.derivation == "seller_confirmation":
             if len(field.evidence) != 2 or field.field not in {
@@ -401,6 +446,17 @@ def validate_interpretation(db, offer, result: OfferInterpretation):
             ):
                 raise ValueError("Negated seller claims require review")
             parsed = extract_caption(" ".join(r["quote"] for r in refs))
+        if (
+            field.field in {"stem_count", "flower_count", "lead_days", "delivery"}
+            and not bundle["reviewed_product_region"]
+        ):
+            target_id = (
+                q["post_id"]
+                if field.derivation == "seller_confirmation"
+                else by_version[refs[-1]["version_id"]]["post_id"]
+            )
+            if not unique_structural_target(db, offer, target_id):
+                raise ValueError("Commercial claim target is ambiguous")
         if field.field == "flower_count":
             if not field.flower or field.flower not in (parsed.flower_composition.value or []):
                 raise ValueError("Component counts require a supported flower type")
@@ -460,8 +516,25 @@ def validate_interpretation(db, offer, result: OfferInterpretation):
             )
         ]
         parsed, warnings = extract_prices(message["text"])
+        reviewed_targets = [
+            target for target in bundle["commercial_targets"] if target["version_id"] == message["version_id"]
+        ]
+        if bundle["reviewed_product_region"]:
+            parsed = [
+                price
+                for price in parsed
+                if any(
+                    target["start"] <= price.evidence.start and price.evidence.end <= target["end"]
+                    for target in reviewed_targets
+                )
+            ]
+            warnings = []
         bouquet_prices = [p for p in parsed if p.component == "bouquet" and p.kind != "previous"]
-        if len(nearest) != 1 or nearest[0].id != offer.id or len(bouquet_prices) > 1 or warnings:
+        if (
+            (not reviewed_targets and (len(nearest) != 1 or nearest[0].id != offer.id))
+            or len(bouquet_prices) > 1
+            or warnings
+        ):
             if bouquet_prices:
                 errors.append("commercial_target_unresolved")
             continue
@@ -521,6 +594,9 @@ def commit_offer(db, offer, execution, output):
 
     analysis = db.scalar(select(OfferAnalysis).where(OfferAnalysis.execution_id == execution.id))
     if analysis.revision_id:
+        from .projection import project_offer
+
+        project_offer(db, offer, execution, analysis)
         return analysis.revision_id
     if offer.input_fingerprint != analysis.fingerprint or offer_fingerprint(db, offer) != analysis.fingerprint:
         raise CapabilityError("Newer evidence supersedes this extraction.", "stale_offer")
@@ -568,6 +644,7 @@ def commit_offer(db, offer, execution, output):
         db.add(listing)
         db.flush()
         offer.listing_id = listing.id
+    claim_ids = []
     for claim in output["claims"]:
         previous = db.scalar(
             select(OfferClaim)
@@ -576,18 +653,19 @@ def commit_offer(db, offer, execution, output):
             .limit(1)
         )
         source = db.get(SourcePost, db.get(PostVersion, claim["evidence"][-1]["version_id"]).post_id)
-        db.add(
-            OfferClaim(
-                offer_id=offer.id,
-                field=claim["field"],
-                value={**claim["value"], "derivation": claim["derivation"]},
-                evidence=claim["evidence"],
-                status=claim["status"],
-                valid_from=source.published_at,
-                supersedes_id=previous.id if previous else None,
-                method_version=execution.behavior_version,
-            )
+        accepted_claim = OfferClaim(
+            offer_id=offer.id,
+            field=claim["field"],
+            value={**claim["value"], "derivation": claim["derivation"]},
+            evidence=claim["evidence"],
+            status=claim["status"],
+            valid_from=source.published_at,
+            supersedes_id=previous.id if previous else None,
+            method_version=execution.behavior_version,
         )
+        db.add(accepted_claim)
+        db.flush()
+        claim_ids.append(accepted_claim.id)
     for association in current_associations(db, offer):
         if not db.scalar(
             select(ListingSource.id).where(
@@ -630,6 +708,7 @@ def commit_offer(db, offer, execution, output):
         "warnings": output["warnings"],
         "offer_type": offer.kind,
         "fingerprint": analysis.fingerprint,
+        "claim_ids": claim_ids,
         "evidence_at": utcnow().isoformat(),
     }
     revision = ListingRevision(
@@ -643,4 +722,7 @@ def commit_offer(db, offer, execution, output):
     # Module 15 supplies gated projection into the public-facing catalog.
     listing.attributes = {**listing.attributes, "pending_offer_revision": revision.id, "offer_id": offer.id}
     analysis.revision_id, analysis.state, offer.state = revision.id, "completed", "validated"
+    from .projection import project_offer
+
+    project_offer(db, offer, execution, analysis)
     return revision.id

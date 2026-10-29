@@ -43,7 +43,9 @@ READ_SURFACE = r"""() => {
   const blocked=!!document.querySelector('input[type="password"],iframe[src*="captcha"]')
     || /\/(?:login|accounts|challenge|checkpoint)(?:\/|$)/.test(path);
   const authenticated=!!document.querySelector('a[href^="/@"] [aria-label="Profile"]');
-  return {url:location.href, posts, controls, profile, blocked, authenticated,
+  const unavailable=!posts.length && [...document.querySelectorAll('h1,h2,[role="heading"]')]
+    .some(e=>shown(e) && /this (?:post|content) (?:isn't|is not) available|bài viết này không|nội dung này không (?:hiển thị|khả dụng)/i.test(e.textContent||''));
+  return {url:location.href, posts, controls, profile, blocked, authenticated, unavailable,
     sorting:[...document.querySelectorAll('button,[role="button"]')].filter(shown)
       .find(e=>e.querySelector('[aria-label="Sort"]'))?.textContent?.trim().slice(0,40)||'unknown'};
 }"""

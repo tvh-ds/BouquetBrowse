@@ -105,6 +105,7 @@ def test_runtime_migration_round_trip(tmp_path):
             "20261029_0004_browser",
             "20261029_0005_offers",
             "20261029_0006_recognition",
+            "20261029_0007_digests",
         ]
     ]
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):

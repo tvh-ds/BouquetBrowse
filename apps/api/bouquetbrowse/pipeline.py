@@ -272,6 +272,10 @@ def process_extraction(db, version_id, pipeline_version="hybrid-v1", prepared=No
 
 
 def review_listing(db, listing: Listing, decision: ReviewDecision, actor):
+    if listing.attributes.get("offer_id"):
+        from .offer_review import review_offer
+
+        return review_offer(db, listing, decision, actor)
     before = {
         name: getattr(listing, name)
         for name in ["state", "primary_flower", "color", "arrangement", "stem_count", "title"]

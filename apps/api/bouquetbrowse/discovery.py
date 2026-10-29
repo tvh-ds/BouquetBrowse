@@ -216,6 +216,8 @@ class DiscoveryServices:
     def checked(self, db):
         guard(db, self.lease)
         execution = pinned_execution(db, self.execution_id)
+        if execution.job_id != self.lease.job_id:
+            raise CapabilityError("Lease does not own this execution.", "lease_lost")
         if not get_settings().discovery_enabled:
             raise CapabilityError("Enable DISCOVERY_ENABLED after local setup.", "discovery_not_configured")
         if settings_row(db).paused:
@@ -276,6 +278,9 @@ class DiscoveryServices:
                 from .offers import segment_capture
 
                 offers = segment_capture(db, state["capture_id"], execution.configuration)
+                from .seller_profiles import project_business_capture
+
+                project_business_capture(db, state["capture_id"], execution.configuration)
                 db.add(
                     ExecutionEvent(
                         execution_id=execution.id,
@@ -451,6 +456,44 @@ def run_discovery(execution_id, lease):
         with database.SessionLocal() as db:
             guard(db, lease)
             execution = db.get(GraphExecution, execution_id)
+            if error.code == "browser_auth_required":
+                row = settings_row(db)
+                row.paused, row.version = True, row.version + 1
+            if error.code == "source_unavailable":
+                from .models import Listing, ListingSource, SourcePost
+                from .projection import change
+
+                url = execution.progress.get("resume_url")
+                post = (
+                    db.scalar(select(SourcePost).where(SourcePost.url == url, SourcePost.access_state != "removed"))
+                    if url
+                    else None
+                )
+                if post and post.access_state != "unavailable":
+                    post.access_state = "unavailable"
+                    for listing in db.scalars(
+                        select(Listing)
+                        .join(ListingSource, ListingSource.listing_id == Listing.id)
+                        .join(PostVersion, PostVersion.id == ListingSource.version_id)
+                        .where(PostVersion.post_id == post.id)
+                    ):
+                        change(
+                            db,
+                            f"access:{post.id}:{listing.id}:unavailable:{execution.id}",
+                            "source_access",
+                            listing.id,
+                            listing.seller_id,
+                            post.url,
+                            post.published_at,
+                            {"state": "unavailable"},
+                        )
+                frontier = (
+                    db.get(DiscoveryFrontier, execution.progress.get("active_frontier"))
+                    if execution.progress.get("active_frontier")
+                    else None
+                )
+                if frontier:
+                    frontier.due_at, frontier.evidence_gaps = utcnow() + timedelta(days=1), ["source_unavailable"]
             execution.stop_reason = error.code
             execution.state = "completed" if error.code in {"budget_exhausted", "scope_budget_exhausted"} else "paused"
             db.commit()

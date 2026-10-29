@@ -42,7 +42,7 @@ Digests project durable catalog-change events into Hanoi-day snapshots after the
 | 12 Threads browser discovery | Implemented with synthetic Chromium tests: bounded controller, visible-UI adapters, durable frontier/captures, dedicated login, authenticated admin APIs. Collector access/coverage with the dedicated profile remains unvalidated |
 | 13 Conversation offers | Implemented with synthetic conversations: independent offer graphs, seller/ancestor price binding, exact quote validation, confirmation derivations, private exceptions and atomic revision receipts. Publication remains gated; no live quality claim |
 | 14 Mixed-flower recognition | Implemented with synthetic/fake-provider tests: joint multi-view recognition, per-type composition/counts, targeted crops and one stronger recheck, auxiliary SigLIP scoring, dependency caches and offline benchmark tooling. Real 100-image results wait for the user's live-test command; visual categories remain tentative |
-| 15 Catalog, profiles, digests | Planned |
+| 15 Catalog, profiles, digests | Implemented with synthetic verification: provisional projection remains release-gated, composition filters, attributable seller facts, immutable daily digests and admin evidence/call controls. Backend 155 tests and 16 desktop/mobile browser checks pass; live operation remains deferred |
 | 16 Real pilot validation | Planned; no measured quality claims |
 | 17 Local recurring operation | Planned; recurring publication disabled until gates pass |
 

@@ -54,6 +54,8 @@ def verify_scope(db, scope):
         execution = db.get(GraphExecution, scope.execution_id)
         if not execution or execution.state in {"cancelled", "superseded", "withdrawn"}:
             raise CapabilityError("Execution is no longer active.", "execution_cancelled")
+        if scope.lease and execution.job_id != scope.lease.job_id:
+            raise CapabilityError("Lease does not own this model execution.", "lease_lost")
         if execution.deadline and aware(execution.deadline) <= utcnow():
             raise CapabilityError("Execution deadline reached.", "run_deadline")
 

@@ -105,6 +105,26 @@ def record_capture(db, envelope: CaptureEnvelope, acquisition: dict):
             db.add(post)
             db.flush()
         post.last_seen_at = utcnow()
+        if post.access_state == "unavailable":
+            post.access_state = "accessible"
+            from .projection import change
+
+            for listing in db.scalars(
+                select(Listing)
+                .join(ListingSource, ListingSource.listing_id == Listing.id)
+                .join(PostVersion, PostVersion.id == ListingSource.version_id)
+                .where(PostVersion.post_id == post.id)
+            ):
+                change(
+                    db,
+                    f"access:{post.id}:{listing.id}:accessible:{capture.id}",
+                    "source_access",
+                    listing.id,
+                    listing.seller_id,
+                    post.url,
+                    post.published_at,
+                    {"state": "accessible"},
+                )
         if post.published_at is None:
             post.published_at = observation.published_at
         content_hash = digest(

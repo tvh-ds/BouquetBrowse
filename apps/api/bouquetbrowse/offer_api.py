@@ -25,6 +25,30 @@ class InterpretationDecision(StrictModel):
     interpretation: OfferInterpretation
 
 
+from .region_review import RegionDecision  # noqa: E402
+
+
+@router.post("/offers/{offer_id}/regions/{region_id}/split")
+def split(
+    offer_id: str,
+    region_id: str,
+    body: RegionDecision,
+    db: Database,
+    user: Annotated[User, Depends(require_admin)],
+    idempotency_key: Annotated[str | None, Header()] = None,
+):
+    from .region_review import split_region
+
+    if not idempotency_key or len(idempotency_key) > 100:
+        raise HTTPException(400, detail="Provide an Idempotency-Key of at most 100 characters.")
+    offer = db.scalar(select(OfferOccurrence).where(OfferOccurrence.id == offer_id).with_for_update())
+    if not offer:
+        raise HTTPException(404, detail="Offer not found.")
+    result = split_region(db, offer, region_id, body, user.id, idempotency_key)
+    db.commit()
+    return result
+
+
 @router.get("")
 def captures(db: Database):
     rows = db.scalars(select(ConversationCapture).order_by(ConversationCapture.created_at.desc()).limit(50))
@@ -65,11 +89,22 @@ def detail(offer_id: str, db: Database):
     offer = db.get(OfferOccurrence, offer_id)
     if not offer:
         raise HTTPException(404, detail="Offer not found.")
+    from .models import MediaAsset
+    from .recognition_models import ImageRegion
+
+    bundle = evidence_bundle(db, offer)
+    media_ids = {m["media_id"] for m in bundle["media"]}
+    regions = list(db.scalars(select(ImageRegion).where(ImageRegion.media_id.in_(media_ids))))
     return {
         "id": offer.id,
         "state": offer.state,
         "fingerprint": offer.input_fingerprint,
-        "evidence": evidence_bundle(db, offer),
+        "evidence": bundle,
+        "regions": [
+            {"id": r.id, "media_id": r.media_id, "bounds": r.bounds, "kind": r.kind, "state": r.state}
+            for r in regions
+            if db.get(MediaAsset, r.media_id).checksum == r.checksum
+        ],
     }
 
 
@@ -115,7 +150,13 @@ def decide(
     for review in reviews:
         review.state, review.actor = "accepted", user.id
         review.decision = {"command_key": idempotency_key, "submitted": submitted, "at": utcnow().isoformat()}
-    analysis.output, analysis.errors = validated, []
+    analysis.output = {
+        **analysis.output,
+        **validated,
+        "composition": validated["composition"]
+        + [c for c in analysis.output.get("composition", []) if c.get("status") == "visual_inference"],
+    }
+    analysis.errors = []
     execution = db.get(GraphExecution, analysis.execution_id)
     job = db.get(Job, execution.job_id)
     if job.state == "processing" or job.cancelled_at:
