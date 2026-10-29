@@ -108,7 +108,17 @@ def record_capture(db, envelope: CaptureEnvelope, acquisition: dict):
             db.add(post)
             db.flush()
         post.last_seen_at = utcnow()
-        content_hash = digest({"text": observation.text, "media": observation.media_urls})
+        if post.published_at is None:
+            post.published_at = observation.published_at
+        content_hash = digest(
+            {
+                "text": observation.text,
+                "media": observation.media_urls,
+                "published_at": observation.published_at,
+                "reply_to": observation.reply_to,
+                "quote_of": observation.quote_of,
+            }
+        )
         version = db.scalar(
             select(PostVersion).where(PostVersion.post_id == post.id, PostVersion.content_hash == content_hash)
         )
@@ -117,7 +127,11 @@ def record_capture(db, envelope: CaptureEnvelope, acquisition: dict):
                 post_id=post.id,
                 content_hash=content_hash,
                 caption=observation.text,
-                payload={"media_urls": observation.media_urls, "acquisition": acquisition},
+                payload={
+                    "media_urls": observation.media_urls,
+                    "acquisition": acquisition,
+                    "published_at": observation.published_at.isoformat() if observation.published_at else None,
+                },
                 retention_until=capture.retention_until,
             )
             db.add(version)

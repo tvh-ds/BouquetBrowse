@@ -68,6 +68,17 @@ def test_takedown_cannot_be_reversed_by_capture(db):
         record_capture(db, capture(message("root")), POLICY)
 
 
+def test_later_capture_can_supply_a_genuinely_observed_publication_date(db):
+    record_capture(db, capture(message("root")), POLICY)
+    published = utcnow() - timedelta(days=2)
+    record_capture(db, capture(message("root", published_at=published)), POLICY)
+    db.flush()
+    from bouquetbrowse.db import aware
+
+    assert aware(db.scalar(select(SourcePost)).published_at) == published
+    assert db.scalar(select(func.count()).select_from(PostVersion)) == 2
+
+
 def test_account_identity_conflict_requires_review(db):
     record_capture(db, capture(message("root", platform_account_id="111")), POLICY)
     with pytest.raises(ValueError, match="reassigned"):
