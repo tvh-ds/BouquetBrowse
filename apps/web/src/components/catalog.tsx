@@ -5,6 +5,7 @@ import { date, label, money, words } from "@/lib/i18n";
 import { CompareButton } from "./controls";
 import { Icon } from "./icons";
 import { FilterPanel } from "./filter-panel";
+import { Composition } from "./evidence-state";
 export function BouquetImage({
   listing,
   priority = false,
@@ -47,6 +48,16 @@ export function PriceLabel({
       <span className="price-caption">
         {p ? words[lang].advertised : words[lang].unknownPrice}
       </span>
+      {listing.state === "provisional" && (
+        <small>
+          {lang === "vi"
+            ? "Giá tạm thời · Chưa duyệt trích xuất"
+            : "Provisional · Extraction not reviewed"}
+        </small>
+      )}
+      {listing.updating && (
+        <small>{lang === "vi" ? "Đang cập nhật" : "Updating"}</small>
+      )}
       {p && (
         <span className="price">
           {p.kind === "from" ? (lang === "vi" ? "Từ " : "From ") : ""}
@@ -110,6 +121,7 @@ export function BouquetCard({
             <Icon name="arrow" />
           </Link>
         </div>
+        <Composition listing={listing} lang={lang} compact />
         {listing.published_at && (
           <span className="card-date">
             {lang === "vi" ? "Đăng" : "Posted"}{" "}
@@ -196,9 +208,53 @@ export function Filters({
     <FilterPanel title={w.filters} close={lang === "vi" ? "Đóng" : "Close"}>
       <form action="/search" className="filters">
         <input type="hidden" name="q" value={values.q || ""} />
+        <label>
+          <span>{w.flower}</span>
+          <select
+            name="flower"
+            multiple
+            defaultValue={values.flower?.split(",") || []}
+            aria-label={
+              lang === "vi" ? "Chọn các loại hoa" : "Choose flower types"
+            }
+          >
+            {facets.flowers.map((flower) => (
+              <option key={flower} value={flower}>
+                {label(flower, lang)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{lang === "vi" ? "Kết hợp loại hoa" : "Flower matching"}</span>
+          <select name="flower_mode" defaultValue={values.flower_mode || "any"}>
+            <option value="any">
+              {lang === "vi"
+                ? "Có ít nhất một loại (ANY)"
+                : "Any selected type"}
+            </option>
+            <option value="all">
+              {lang === "vi"
+                ? "Có tất cả các loại (ALL)"
+                : "All selected types"}
+            </option>
+          </select>
+        </label>
+        <label>
+          <span>
+            {lang === "vi"
+              ? "Chỉ thông tin đã duyệt"
+              : "Reviewed extraction only"}
+          </span>
+          <input
+            type="checkbox"
+            name="reviewed_only"
+            value="true"
+            defaultChecked={values.reviewed_only === "true"}
+          />
+        </label>
         {(
           [
-            ["flower", w.flower, facets.flowers],
             ["color", w.color, facets.colors],
             ["district", w.district, facets.districts],
             [

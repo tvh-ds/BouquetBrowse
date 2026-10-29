@@ -72,11 +72,13 @@ class OfferServices:
     def checked(self, db):
         guard(db, self.lease)
         execution = pinned_execution(db, self.execution_id)
+        if execution.job_id != self.lease.job_id:
+            raise CapabilityError("Lease does not own this execution.", "lease_lost")
         offer = db.get(OfferOccurrence, execution.offer_id)
         if (
             execution.state in {"cancelled", "superseded", "withdrawn"}
             or not offer
-            or offer.state in {"withdrawn", "rejected"}
+            or offer.state in {"withdrawn", "rejected", "split"}
         ):
             raise CapabilityError("Offer execution is no longer active.", "execution_cancelled")
         if execution.progress.get("offer_fingerprint") != offer.input_fingerprint:
@@ -152,7 +154,7 @@ class OfferServices:
                         composition = merge_components(
                             write, output["composition"], visual["results"], configuration, visual["views"]
                         )
-                        if any(r.multi_product for r in visual["results"]):
+                        if any(r.multi_product for r in visual["results"]) and not bundle["reviewed_product_region"]:
                             output["errors"] = sorted(set([*output["errors"], "multi_product_review"]))
                         current_analysis.output = {
                             **output,

@@ -24,7 +24,6 @@ from .models import (
     Listing,
     ListingSource,
     MediaAsset,
-    PostMedia,
     PostVersion,
     PriceObservation,
     ReviewAction,
@@ -67,11 +66,13 @@ app = FastAPI(
     redoc_url=None,
 )
 
+from .digest_api import router as digest_router  # noqa: E402
 from .discovery_api import router as discovery_router  # noqa: E402
 from .offer_api import router as offer_router  # noqa: E402
 
 app.include_router(discovery_router)
 app.include_router(offer_router)
+app.include_router(digest_router)
 
 
 @app.middleware("http")
@@ -210,13 +211,19 @@ def get_session(user: User = Depends(require_user)):
 
 
 def published_listing(db, listing_id):
+    from .visibility import visible
+
     listing = db.get(Listing, listing_id)
-    if not listing or listing.state != "published":
+    if not visible(db, listing):
         raise HTTPException(404, detail={"code": "listing_not_found", "message": "This bouquet is unavailable."})
     return listing
 
 
-def detail(db, listing):
+def detail(db, listing, operational=False):
+    from .conversation_models import OfferClaim, OfferOccurrence
+    from .digests import recent_changes
+    from .models import SourceAccount
+
     source_rows = db.execute(
         select(SourcePost, PostVersion)
         .join(PostVersion, PostVersion.post_id == SourcePost.id)
@@ -224,9 +231,51 @@ def detail(db, listing):
         .where(ListingSource.listing_id == listing.id)
         .order_by(SourcePost.published_at.desc())
     ).all()
+    if not operational:
+        source_rows = [
+            (post, version)
+            for post, version in source_rows
+            if db.get(SourceAccount, post.account_id).seller_id == listing.seller_id
+        ]
     assertions = db.scalars(
         select(FieldAssertion).where(FieldAssertion.listing_id == listing.id).order_by(FieldAssertion.created_at.desc())
     ).all()
+    offer = db.scalar(select(OfferOccurrence).where(OfferOccurrence.listing_id == listing.id))
+    extra_assertions = []
+    if offer:
+        from .models import ListingRevision
+
+        accepted_revision = (
+            db.get(ListingRevision, listing.current_revision_id) if listing.current_revision_id else None
+        )
+        for claim in db.scalars(select(OfferClaim).where(OfferClaim.offer_id == offer.id)):
+            if not operational and (
+                not accepted_revision or claim.id not in accepted_revision.snapshot.get("claim_ids", [])
+            ):
+                continue
+            refs = (
+                claim.evidence
+                if operational
+                else [
+                    ref
+                    for ref in claim.evidence
+                    if (version := db.get(PostVersion, ref.get("version_id")))
+                    and db.get(SourcePost, version.post_id).account_id == offer.account_id
+                ]
+            )
+            extra_assertions.append(
+                {
+                    "id": claim.id,
+                    "field": claim.field,
+                    "value": {
+                        key: value for key, value in claim.value.items() if key in {"value", "flower", "derivation"}
+                    },
+                    "status": claim.status,
+                    "review_state": claim.review_state,
+                    "evidence": refs,
+                    "calibrated_confidence": None,
+                }
+            )
     return {
         **card(db, listing),
         "sources": [
@@ -234,14 +283,15 @@ def detail(db, listing):
                 "id": post.id,
                 "url": post.url,
                 "platform": post.platform,
-                "published_at": aware(post.published_at).isoformat(),
+                "published_at": aware(post.published_at).isoformat() if post.published_at else None,
                 "last_seen_at": aware(post.last_seen_at).isoformat(),
                 "caption": version.caption,
                 "version_id": version.id,
             }
             for post, version in source_rows
         ],
-        "assertions": [
+        "assertions": extra_assertions
+        + [
             {
                 "id": a.id,
                 "field": a.field,
@@ -254,13 +304,17 @@ def detail(db, listing):
             for a in assertions
         ],
         "warnings": listing.attributes.get("warnings", []),
+        "recent_changes": recent_changes(db, listing_id=listing.id),
+        "review_fingerprint": offer.input_fingerprint if offer and operational else None,
     }
 
 
 @app.get("/v1/catalog", dependencies=[Depends(require_user)], response_model=CatalogView)
 def get_catalog(
     q: str = Query("", max_length=200),
-    flower: str = "",
+    flower: str = Query("", max_length=1000),
+    flower_mode: str = Query("any", pattern="^(any|all)$"),
+    reviewed_only: bool = False,
     color: str = "",
     district: str = "",
     arrangement: str = "",
@@ -274,15 +328,31 @@ def get_catalog(
     db: Session = Depends(get_db),
 ):
     return catalog(
-        db, q, flower, color, district, arrangement, occasion, delivery, max_price, min_price, sort, cursor, limit
+        db,
+        q,
+        flower,
+        color,
+        district,
+        arrangement,
+        occasion,
+        delivery,
+        max_price,
+        min_price,
+        sort,
+        cursor,
+        limit,
+        flower_mode,
+        reviewed_only,
     )
 
 
 @app.get("/v1/catalog/facets", dependencies=[Depends(require_user)], response_model=FacetsView)
 def facets(db: Session = Depends(get_db)):
+    from .visibility import flower_types
+
     listings = all_listings(db)
     return {
-        "flowers": sorted({listing.primary_flower for listing in listings if listing.primary_flower}),
+        "flowers": sorted({flower for listing in listings for flower in flower_types(listing)}),
         "colors": sorted({listing.color for listing in listings if listing.color}),
         "arrangements": sorted({listing.arrangement for listing in listings if listing.arrangement}),
         "occasions": sorted({listing.occasion for listing in listings if listing.occasion}),
@@ -313,10 +383,21 @@ def get_history(listing_id: str, db: Session = Depends(get_db)):
         .where(
             PriceObservation.listing_id == listing.id,
             PriceObservation.component == "bouquet",
-            PriceObservation.reviewed.is_(True),
         )
         .order_by(PriceObservation.advertised_at, PriceObservation.id)
     ).all()
+    if "offer_id" in listing.attributes:
+        from .models import ListingRevision
+
+        accepted_price_ids = {
+            price_id
+            for revision in db.scalars(select(ListingRevision).where(ListingRevision.listing_id == listing.id))
+            if revision.id == listing.current_revision_id or revision.snapshot.get("published")
+            for price_id in revision.snapshot.get("price_ids", [])
+        }
+        prices = [price for price in prices if price.id in accepted_price_ids]
+    else:
+        prices = [price for price in prices if price.reviewed]
     return {
         "is_demo": listing.is_demo,
         "items": [price_json(p) for p in prices],
@@ -329,6 +410,16 @@ def get_seller(seller_id: str, db: Session = Depends(get_db)):
     seller = db.scalar(select(Seller).where(or_(Seller.id == seller_id, Seller.slug == seller_id)))
     if not seller:
         raise HTTPException(404, detail="Seller not found.")
+    from .catalog_event_models import SellerFact
+    from .digests import recent_changes
+    from .visibility import visible_listings
+
+    listings = [listing for listing in visible_listings(db) if listing.seller_id == seller.id]
+    facts = list(
+        db.scalars(select(SellerFact).where(SellerFact.seller_id == seller.id, SellerFact.retention_until > utcnow()))
+    )
+    if not seller.is_demo and not listings and not facts:
+        raise HTTPException(404, detail="Seller profile is not published.")
     return {
         "seller": {
             "id": seller.id,
@@ -340,12 +431,12 @@ def get_seller(seller_id: str, db: Session = Depends(get_db)):
             "profile_url": seller.profile_url,
             "is_demo": seller.is_demo,
         },
-        "items": [
-            card(db, listing)
-            for listing in db.scalars(
-                select(Listing).where(Listing.seller_id == seller.id, Listing.state == "published")
-            ).all()
+        "items": [card(db, listing) for listing in listings],
+        "facts": [
+            {"field": fact.field, "value": fact.value, "evidence": {"version_id": fact.evidence.get("version_id")}}
+            for fact in facts
         ],
+        "recent_changes": recent_changes(db, seller_id=seller.id),
     }
 
 
@@ -372,14 +463,10 @@ def analytics(listing_id: str | None = None, db: Session = Depends(get_db)):
 
 @app.get("/v1/media/{media_id}", dependencies=[Depends(require_user)])
 def get_media(media_id: str, db: Session = Depends(get_db)):
+    from .visibility import visible_media
+
     asset = db.get(MediaAsset, media_id)
-    active = db.scalar(
-        select(Listing.id)
-        .join(ListingSource, ListingSource.listing_id == Listing.id)
-        .join(PostMedia, PostMedia.version_id == ListingSource.version_id)
-        .where(PostMedia.media_id == media_id, Listing.state == "published")
-        .limit(1)
-    )
+    active = visible_media(db, media_id)
     if not asset or asset.state != "ready" or not asset.storage_key or not active:
         raise HTTPException(404, detail="Media not found.")
     from .storage import get_media_bytes
@@ -498,7 +585,7 @@ def admin_reviews(db: Session = Depends(get_db)):
         .order_by(Listing.created_at.desc())
         .limit(100)
     ).all()
-    return {"items": [detail(db, listing) for listing in listings]}
+    return {"items": [detail(db, listing, operational=True) for listing in listings]}
 
 
 @app.post("/v1/admin/reviews/{listing_id}/decision")
@@ -515,14 +602,41 @@ def decide(
 
 @app.post("/v1/admin/listings/{listing_id}/reprocess", dependencies=[Depends(require_admin)])
 def reprocess(listing_id: str, idempotency_key: str | None = Header(None), db: Session = Depends(get_db)):
-    listing = published_listing(db, listing_id)
+    listing = db.get(Listing, listing_id)
+    if not listing or listing.state in {"withdrawn", "rejected"}:
+        raise HTTPException(404, detail="Listing is missing or suppressed.")
+    key = request_key(idempotency_key)
+    if listing.attributes.get("offer_id"):
+        from .conversation_models import OfferOccurrence
+        from .executions import create_execution
+        from .runtime_models import GraphExecution
+
+        offer = db.get(OfferOccurrence, listing.attributes["offer_id"])
+        previous = db.scalar(
+            select(GraphExecution)
+            .where(GraphExecution.offer_id == offer.id)
+            .order_by(GraphExecution.created_at.desc())
+            .limit(1)
+        )
+        if not previous:
+            raise HTTPException(409, detail="Offer execution configuration is unavailable.")
+        execution = create_execution(
+            db,
+            "offer",
+            f"reprocess:{offer.id}:{digest(key)}",
+            previous.configuration,
+            offer.input_fingerprint,
+            offer.id,
+        )
+        listing.attributes = {**listing.attributes, "updating": True}
+        db.commit()
+        return {"job_id": execution.job_id}
     link = db.scalar(
         select(ListingSource)
         .where(ListingSource.listing_id == listing.id)
         .order_by(ListingSource.created_at.desc())
         .limit(1)
     )
-    key = request_key(idempotency_key)
     job = enqueue(
         db,
         "extract",

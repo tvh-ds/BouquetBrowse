@@ -1980,3 +1980,78 @@ th {
     line-height: 1.55;
   }
 }
+/* Evidence and digest extensions inherit the existing botanical visual system. */
+.composition-inline,
+.composition-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0;
+}
+.composition-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-size: 12px;
+}
+.composition-inline li,
+.composition-list li {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.composition-list li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.composition-list small,
+.composition-inline small {
+  color: var(--muted);
+}
+.evidence-status p {
+  margin: 0.6rem 0;
+  font-size: 13px;
+}
+.change-list {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0;
+}
+.change-list > li {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+  align-items: start;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.change-list h2,
+.change-list h3 {
+  margin: 0 0 0.5rem;
+}
+.change-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.change-actions a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.filters select[multiple] {
+  min-height: 100px;
+}
+.filters input[type="checkbox"] {
+  min-width: 44px;
+  min-height: 44px;
+  accent-color: var(--ink);
+}
+@media (max-width: 640px) {
+  .change-list > li {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

@@ -221,6 +221,78 @@
         }
       }
     },
+    "/v1/admin/conversations/offers/{offer_id}/regions/{region_id}/split": {
+      "post": {
+        "summary": "Split",
+        "operationId": "split_v1_admin_conversations_offers__offer_id__regions__region_id__split_post",
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Offer Id"
+            }
+          },
+          {
+            "name": "region_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Region Id"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegionDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/admin/conversations": {
       "get": {
         "summary": "Captures",
@@ -368,6 +440,217 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/media/{media_id}": {
+      "get": {
+        "summary": "Operational Media",
+        "operationId": "operational_media_v1_admin_media__media_id__get",
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Media Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/listings/{listing_id}/image": {
+      "get": {
+        "summary": "Listing Image",
+        "operationId": "listing_image_v1_listings__listing_id__image_get",
+        "parameters": [
+          {
+            "name": "listing_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Listing Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/digests": {
+      "get": {
+        "summary": "Digests",
+        "operationId": "digests_v1_digests_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DigestListView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/digests/{day}": {
+      "get": {
+        "summary": "Digest",
+        "operationId": "digest_v1_digests__day__get",
+        "parameters": [
+          {
+            "name": "day",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Day"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DigestView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/model-calls": {
+      "get": {
+        "summary": "Calls",
+        "operationId": "calls_v1_admin_model_calls_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/model-calls/{call_id}/replay": {
+      "post": {
+        "summary": "Replay",
+        "operationId": "replay_v1_admin_model_calls__call_id__replay_post",
+        "parameters": [
+          {
+            "name": "call_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Call Id"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplayBody"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -552,8 +835,30 @@
             "required": false,
             "schema": {
               "type": "string",
+              "maxLength": 1000,
               "default": "",
               "title": "Flower"
+            }
+          },
+          {
+            "name": "flower_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(any|all)$",
+              "default": "any",
+              "title": "Flower Mode"
+            }
+          },
+          {
+            "name": "reviewed_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Reviewed Only"
             }
           },
           {
@@ -1556,6 +1861,84 @@
         ],
         "title": "CatalogView"
       },
+      "ChangeView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "listing_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listing Id"
+          },
+          "seller_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seller Id"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "advertised_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Advertised At"
+          },
+          "observed_at": {
+            "type": "string",
+            "title": "Observed At"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "listing_id",
+          "seller_id",
+          "source_url",
+          "advertised_at",
+          "observed_at",
+          "details"
+        ],
+        "title": "ChangeView"
+      },
       "ComparisonView": {
         "properties": {
           "summary": {
@@ -1584,6 +1967,74 @@
           "excluded"
         ],
         "title": "ComparisonView"
+      },
+      "CompositionView": {
+        "properties": {
+          "flower": {
+            "type": "string",
+            "title": "Flower"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "stated_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stated Count"
+          },
+          "alternatives": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alternatives"
+          },
+          "review_state": {
+            "type": "string",
+            "title": "Review State"
+          },
+          "supported": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported"
+          },
+          "visual_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual State"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "flower",
+          "status",
+          "stated_count",
+          "alternatives",
+          "review_state",
+          "supported",
+          "visual_state"
+        ],
+        "title": "CompositionView"
       },
       "DetailView": {
         "properties": {
@@ -1749,6 +2200,17 @@
             ],
             "title": "Source Platform"
           },
+          "source_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source State"
+          },
           "similarity": {
             "anyOf": [
               {
@@ -1785,6 +2247,46 @@
             ],
             "title": "Qualified"
           },
+          "composition": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionView"
+            },
+            "type": "array",
+            "title": "Composition",
+            "default": []
+          },
+          "offer_type": {
+            "type": "string",
+            "title": "Offer Type",
+            "default": "seller_work"
+          },
+          "updating": {
+            "type": "boolean",
+            "title": "Updating",
+            "default": false
+          },
+          "capture_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture Complete"
+          },
+          "evidence_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence At"
+          },
           "sources": {
             "items": {
               "$ref": "#/components/schemas/SourceView"
@@ -1805,6 +2307,25 @@
             },
             "type": "array",
             "title": "Warnings"
+          },
+          "review_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Fingerprint"
+          },
+          "recent_changes": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeView"
+            },
+            "type": "array",
+            "title": "Recent Changes",
+            "default": []
           }
         },
         "additionalProperties": true,
@@ -1835,6 +2356,66 @@
           "warnings"
         ],
         "title": "DetailView"
+      },
+      "DigestListView": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DigestView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "DigestListView"
+      },
+      "DigestView": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial"
+          },
+          "coverage": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Coverage"
+          },
+          "published_at": {
+            "type": "string",
+            "title": "Published At"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeView"
+            },
+            "type": "array",
+            "title": "Items",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "date",
+          "partial",
+          "coverage",
+          "published_at",
+          "note"
+        ],
+        "title": "DigestView"
       },
       "ExcludedView": {
         "properties": {
@@ -2240,6 +2821,17 @@
             ],
             "title": "Source Platform"
           },
+          "source_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source State"
+          },
           "similarity": {
             "anyOf": [
               {
@@ -2275,6 +2867,46 @@
               }
             ],
             "title": "Qualified"
+          },
+          "composition": {
+            "items": {
+              "$ref": "#/components/schemas/CompositionView"
+            },
+            "type": "array",
+            "title": "Composition",
+            "default": []
+          },
+          "offer_type": {
+            "type": "string",
+            "title": "Offer Type",
+            "default": "seller_work"
+          },
+          "updating": {
+            "type": "boolean",
+            "title": "Updating",
+            "default": false
+          },
+          "capture_complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture Complete"
+          },
+          "evidence_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence At"
           }
         },
         "additionalProperties": true,
@@ -2620,8 +3252,72 @@
         ],
         "title": "QuoteReference"
       },
+      "RegionDecision": {
+        "properties": {
+          "expected_fingerprint": {
+            "type": "string",
+            "title": "Expected Fingerprint"
+          },
+          "price_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuoteReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_fingerprint"
+        ],
+        "title": "RegionDecision"
+      },
+      "ReplayBody": {
+        "properties": {
+          "expected_state": {
+            "type": "string",
+            "title": "Expected State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_state"
+        ],
+        "title": "ReplayBody"
+      },
       "ReviewDecision": {
         "properties": {
+          "expected_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Fingerprint"
+          },
+          "composition": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition"
+          },
           "decision": {
             "type": "string",
             "enum": [
@@ -2908,7 +3604,14 @@
             "title": "Platform"
           },
           "published_at": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Published At"
           },
           "last_seen_at": {

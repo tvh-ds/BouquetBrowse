@@ -3,6 +3,8 @@ import { locale } from "@/lib/locale";
 import type { Listing, Seller } from "@/lib/types";
 import { BouquetGrid } from "@/components/catalog";
 import { Icon } from "@/components/icons";
+import { ChangeList } from "@/components/change-list";
+import type { Change } from "@/lib/digests";
 export default async function SellerPage({
   params,
 }: {
@@ -11,7 +13,12 @@ export default async function SellerPage({
   const { id } = await params;
   const [lang, data] = await Promise.all([
     locale(),
-    api<{ seller: Seller; items: Listing[] }>(`/v1/sellers/${id}`),
+    api<{
+      seller: Seller;
+      items: Listing[];
+      recent_changes: Change[];
+      facts: { field: string; value: { value: unknown } }[];
+    }>(`/v1/sellers/${id}`),
   ]);
   return (
     <main id="main" className="page-width standard-page">
@@ -51,6 +58,29 @@ export default async function SellerPage({
         </span>
       </div>
       <BouquetGrid items={data.items} lang={lang} />
+      {data.facts.length > 0 && (
+        <section>
+          <h2>
+            {lang === "vi"
+              ? "Thông tin được người bán nêu"
+              : "Seller-stated details"}
+          </h2>
+          <dl className="attribute-list">
+            {data.facts.map((fact, i) => (
+              <div key={i}>
+                <dt>{fact.field.replaceAll("_", " ")}</dt>
+                <dd>{String(fact.value.value ?? "—")}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+      {data.recent_changes.length > 0 && (
+        <section>
+          <h2>{lang === "vi" ? "Thay đổi gần đây" : "Recent changes"}</h2>
+          <ChangeList items={data.recent_changes} lang={lang} />
+        </section>
+      )}
     </main>
   );
 }

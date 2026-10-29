@@ -98,6 +98,8 @@ class PublicPagePreview(StrictModel):
 
 
 class ReviewDecision(StrictModel):
+    expected_fingerprint: str | None = None
+    composition: list[str] | None = Field(default=None, max_length=20)
     decision: Literal["accept", "correct", "reject"]
     reason: str = Field(min_length=3, max_length=1000)
     primary_flower: str | None = Field(default=None, max_length=40)

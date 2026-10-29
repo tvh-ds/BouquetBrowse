@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 import path from "node:path";
+const apiPort = process.env.E2E_API_PORT || "8000";
+const webPort = process.env.E2E_WEB_PORT || "3000";
 const python = path.resolve(
   process.platform === "win32"
     ? "../api/.venv/Scripts/python.exe"
@@ -12,7 +14,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: `http://127.0.0.1:${webPort}`,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -29,8 +31,8 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `"${python}" -m uvicorn bouquetbrowse.api:app --host 127.0.0.1 --port 8000 --no-access-log`,
-      url: "http://127.0.0.1:8000/health/ready",
+      command: `"${python}" -m uvicorn bouquetbrowse.api:app --host 127.0.0.1 --port ${apiPort} --no-access-log`,
+      url: `http://127.0.0.1:${apiPort}/health/ready`,
       reuseExistingServer: !process.env.CI,
       timeout: 60000,
       env: {
@@ -42,13 +44,13 @@ export default defineConfig({
       },
     },
     {
-      command: "npm run start -- --port 3000",
-      url: "http://127.0.0.1:3000/login",
+      command: `npm run start -- --port ${webPort}`,
+      url: `http://127.0.0.1:${webPort}/login`,
       reuseExistingServer: !process.env.CI,
       timeout: 60000,
       env: {
         APP_MODE: "demo",
-        API_URL: "http://127.0.0.1:8000",
+        API_URL: `http://127.0.0.1:${apiPort}`,
         INTERNAL_API_TOKEN: "localhost-proxy-demo-token",
       },
     },

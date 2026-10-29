@@ -14,6 +14,8 @@ export default async function Search({
   for (const key of [
     "q",
     "flower",
+    "flower_mode",
+    "reviewed_only",
     "color",
     "district",
     "arrangement",
@@ -25,9 +27,11 @@ export default async function Search({
     "cursor",
   ])
     if (typeof raw[key] === "string") values[key] = raw[key];
+  if (Array.isArray(raw.flower)) values.flower = raw.flower.join(",");
   const query = new URLSearchParams(
     Object.entries(values).filter(
-      (entry): entry is [string, string] => entry[1] !== undefined,
+      (entry): entry is [string, string] =>
+        entry[1] !== undefined && entry[1] !== "",
     ),
   );
   const [lang, result, facets] = await Promise.all([

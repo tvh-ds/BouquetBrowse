@@ -307,4 +307,11 @@ class RateBucket(Base):
 
 
 # Register conversation tables in the shared metadata.
-from . import browser_models, conversation_models, offer_models, recognition_models, runtime_models  # noqa: E402, F401
+from . import (  # noqa: E402, F401
+    browser_models,
+    catalog_event_models,
+    conversation_models,
+    offer_models,
+    recognition_models,
+    runtime_models,
+)

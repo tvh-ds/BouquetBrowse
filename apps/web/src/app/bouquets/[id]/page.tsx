@@ -7,6 +7,7 @@ import { BouquetGrid, BouquetImage, PriceLabel } from "@/components/catalog";
 import { CompareButton } from "@/components/controls";
 import { Benchmark, PriceHistory } from "@/components/benchmark";
 import { Icon } from "@/components/icons";
+import { Composition, EvidenceState } from "@/components/evidence-state";
 export default async function Bouquet({
   params,
 }: {
@@ -47,9 +48,11 @@ export default async function Bouquet({
           <p className="detail-intro">
             {lang === "vi"
               ? listing.description
-              : `${label(listing.color, lang)} ${label(listing.primary_flower, lang).toLowerCase()} in a thoughtfully wrapped ${label(listing.arrangement, lang).toLowerCase()}. Details are grounded in the source advertisement.`}
+              : `${label(listing.primary_flower, lang)} · ${label(listing.arrangement, lang)}. ${listing.color ? label(listing.color, lang) + ". " : ""}Contact the seller to confirm the advertised details.`}
           </p>
           <PriceLabel listing={listing} lang={lang} />
+          <EvidenceState listing={listing} lang={lang} />
+          <Composition listing={listing} lang={lang} />
           <p className="fine-print">
             {lang === "vi" ? "Đăng" : "Posted"}{" "}
             {date(listing.published_at, lang)} ·{" "}
@@ -110,7 +113,12 @@ export default async function Bouquet({
           </dl>
           <p className="review-note">
             <Icon name="check" />
-            {w.reviewed}.{" "}
+            {listing.attributes.extraction_reviewed
+              ? w.reviewed
+              : lang === "vi"
+                ? "Trích xuất chưa được duyệt"
+                : "Extraction not reviewed"}
+            .{" "}
             {lang === "vi"
               ? "Không phải xác nhận tồn kho."
               : "This does not confirm inventory."}

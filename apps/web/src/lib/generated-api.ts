@@ -107,6 +107,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/admin/conversations/offers/{offer_id}/regions/{region_id}/split": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Split */
+    post: operations["split_v1_admin_conversations_offers__offer_id__regions__region_id__split_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/admin/conversations": {
     parameters: {
       query?: never;
@@ -186,6 +203,108 @@ export interface paths {
     get: operations["capture_detail_v1_admin_conversations__capture_id__get"];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/media/{media_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Operational Media */
+    get: operations["operational_media_v1_admin_media__media_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/listings/{listing_id}/image": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Listing Image */
+    get: operations["listing_image_v1_listings__listing_id__image_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/digests": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Digests */
+    get: operations["digests_v1_digests_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/digests/{day}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Digest */
+    get: operations["digest_v1_digests__day__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/model-calls": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Calls */
+    get: operations["calls_v1_admin_model_calls_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/model-calls/{call_id}/replay": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Replay */
+    post: operations["replay_v1_admin_model_calls__call_id__replay_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -683,6 +802,29 @@ export interface components {
     } & {
       [key: string]: unknown;
     };
+    /** ChangeView */
+    ChangeView: {
+      /** Id */
+      id: string;
+      /** Kind */
+      kind: string;
+      /** Listing Id */
+      listing_id: string | null;
+      /** Seller Id */
+      seller_id: string | null;
+      /** Source Url */
+      source_url: string | null;
+      /** Advertised At */
+      advertised_at: string | null;
+      /** Observed At */
+      observed_at: string;
+      /** Details */
+      details: {
+        [key: string]: unknown;
+      };
+    } & {
+      [key: string]: unknown;
+    };
     /** ComparisonView */
     ComparisonView: {
       summary: components["schemas"]["SummaryView"];
@@ -690,6 +832,25 @@ export interface components {
       items: components["schemas"]["ListingView"][];
       /** Excluded */
       excluded: components["schemas"]["ExcludedView"][];
+    } & {
+      [key: string]: unknown;
+    };
+    /** CompositionView */
+    CompositionView: {
+      /** Flower */
+      flower: string;
+      /** Status */
+      status: string;
+      /** Stated Count */
+      stated_count: number | null;
+      /** Alternatives */
+      alternatives: string[];
+      /** Review State */
+      review_state: string;
+      /** Supported */
+      supported: boolean | null;
+      /** Visual State */
+      visual_state: string | null;
     } & {
       [key: string]: unknown;
     };
@@ -734,18 +895,75 @@ export interface components {
       source_url: string | null;
       /** Source Platform */
       source_platform: string | null;
+      /** Source State */
+      source_state?: string | null;
       /** Similarity */
       similarity?: number | null;
       /** Match Reasons */
       match_reasons?: string[] | null;
       /** Qualified */
       qualified?: boolean | null;
+      /**
+       * Composition
+       * @default []
+       */
+      composition: components["schemas"]["CompositionView"][];
+      /**
+       * Offer Type
+       * @default seller_work
+       */
+      offer_type: string;
+      /**
+       * Updating
+       * @default false
+       */
+      updating: boolean;
+      /** Capture Complete */
+      capture_complete?: boolean | null;
+      /** Evidence At */
+      evidence_at?: string | null;
       /** Sources */
       sources: components["schemas"]["SourceView"][];
       /** Assertions */
       assertions: components["schemas"]["AssertionView"][];
       /** Warnings */
       warnings: string[];
+      /** Review Fingerprint */
+      review_fingerprint?: string | null;
+      /**
+       * Recent Changes
+       * @default []
+       */
+      recent_changes: components["schemas"]["ChangeView"][];
+    } & {
+      [key: string]: unknown;
+    };
+    /** DigestListView */
+    DigestListView: {
+      /** Items */
+      items: components["schemas"]["DigestView"][];
+    } & {
+      [key: string]: unknown;
+    };
+    /** DigestView */
+    DigestView: {
+      /** Date */
+      date: string;
+      /** Partial */
+      partial: boolean;
+      /** Coverage */
+      coverage: {
+        [key: string]: unknown;
+      };
+      /** Published At */
+      published_at: string;
+      /** Note */
+      note: string;
+      /**
+       * Items
+       * @default []
+       */
+      items: components["schemas"]["ChangeView"][];
     } & {
       [key: string]: unknown;
     };
@@ -872,12 +1090,33 @@ export interface components {
       source_url: string | null;
       /** Source Platform */
       source_platform: string | null;
+      /** Source State */
+      source_state?: string | null;
       /** Similarity */
       similarity?: number | null;
       /** Match Reasons */
       match_reasons?: string[] | null;
       /** Qualified */
       qualified?: boolean | null;
+      /**
+       * Composition
+       * @default []
+       */
+      composition: components["schemas"]["CompositionView"][];
+      /**
+       * Offer Type
+       * @default seller_work
+       */
+      offer_type: string;
+      /**
+       * Updating
+       * @default false
+       */
+      updating: boolean;
+      /** Capture Complete */
+      capture_complete?: boolean | null;
+      /** Evidence At */
+      evidence_at?: string | null;
     } & {
       [key: string]: unknown;
     };
@@ -986,8 +1225,23 @@ export interface components {
       /** After */
       after?: string | null;
     };
+    /** RegionDecision */
+    RegionDecision: {
+      /** Expected Fingerprint */
+      expected_fingerprint: string;
+      price_target?: components["schemas"]["QuoteReference"] | null;
+    };
+    /** ReplayBody */
+    ReplayBody: {
+      /** Expected State */
+      expected_state: string;
+    };
     /** ReviewDecision */
     ReviewDecision: {
+      /** Expected Fingerprint */
+      expected_fingerprint?: string | null;
+      /** Composition */
+      composition?: string[] | null;
       /**
        * Decision
        * @enum {string}
@@ -1080,7 +1334,7 @@ export interface components {
       /** Platform */
       platform: string;
       /** Published At */
-      published_at: string;
+      published_at: string | null;
       /** Last Seen At */
       last_seen_at: string;
       /** Caption */
@@ -1375,6 +1629,44 @@ export interface operations {
       };
     };
   };
+  split_v1_admin_conversations_offers__offer_id__regions__region_id__split_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "idempotency-key"?: string | null;
+      };
+      path: {
+        offer_id: string;
+        region_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RegionDecision"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   captures_v1_admin_conversations_get: {
     parameters: {
       query?: never;
@@ -1493,6 +1785,176 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  operational_media_v1_admin_media__media_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        media_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  listing_image_v1_listings__listing_id__image_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        listing_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  digests_v1_digests_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DigestListView"];
+        };
+      };
+    };
+  };
+  digest_v1_digests__day__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        day: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DigestView"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  calls_v1_admin_model_calls_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  replay_v1_admin_model_calls__call_id__replay_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "idempotency-key"?: string | null;
+      };
+      path: {
+        call_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReplayBody"];
+      };
+    };
     responses: {
       /** @description Successful Response */
       200: {
@@ -1667,6 +2129,8 @@ export interface operations {
       query?: {
         q?: string;
         flower?: string;
+        flower_mode?: string;
+        reviewed_only?: boolean;
         color?: string;
         district?: string;
         arrangement?: string;

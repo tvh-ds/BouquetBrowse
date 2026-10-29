@@ -25,6 +25,9 @@ export async function Header({ lang }: { lang: Locale }) {
                 <Link href="/">{w.discover}</Link>
                 <Link href="/compare">{w.compare}</Link>
                 <Link href="/analytics">{w.analytics}</Link>
+                <Link href="/digests">
+                  {lang === "vi" ? "Nhật ký" : "Journal"}
+                </Link>
                 {["admin", "reviewer"].includes(user.role) && (
                   <Link href="/admin">{w.admin}</Link>
                 )}

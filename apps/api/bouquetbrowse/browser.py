@@ -146,6 +146,8 @@ class BrowserController:
             raise CapabilityError("The browser needs direct sign-in or access recovery.", "browser_auth_required")
         navigation_url(self.page.url)
         surface = self.page.evaluate(READ_SURFACE)
+        if surface.get("authenticated") and surface.get("unavailable"):
+            raise CapabilityError("Threads explicitly reports this source is unavailable.", "source_unavailable")
         if surface.get("blocked") or not surface.get("authenticated"):
             raise CapabilityError(
                 "Sign in directly in the dedicated Threads profile; collection is paused.", "browser_auth_required"

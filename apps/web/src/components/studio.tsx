@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useState } from "react";
 import type { Detail, Locale } from "@/lib/types";
+import { DiscoveryStudio } from "./discovery-studio";
 export interface Source {
   id: string;
   name: string;
@@ -138,6 +139,7 @@ export function Studio({
   const tabs = isAdmin
     ? [
         ["overview", vi ? "Tổng quan" : "Overview"],
+        ["discovery", vi ? "Khám phá Threads" : "Threads discovery"],
         ["imports", vi ? "Nhập dữ liệu" : "Import"],
         ["reviews", vi ? "Duyệt thông tin" : "Review"],
         ["jobs", vi ? "Tác vụ" : "Jobs"],
@@ -184,6 +186,7 @@ export function Studio({
         aria-labelledby={`tab-${tab}`}
         aria-busy={busy}
       >
+        {tab === "discovery" && isAdmin && <DiscoveryStudio lang={lang} />}
         {tab === "overview" && overview && (
           <section className="studio-section">
             <dl className="studio-overview">
@@ -399,6 +402,13 @@ export function Studio({
                         decision: button?.value || "accept",
                         reason: String(f.get("reason")),
                       };
+                      if (listing.review_fingerprint)
+                        body.expected_fingerprint = listing.review_fingerprint;
+                      if (f.get("composition"))
+                        body.composition = String(f.get("composition"))
+                          .split(",")
+                          .map((value) => value.trim())
+                          .filter(Boolean);
                       if (f.get("price")) {
                         body.price_minor = Number(f.get("price"));
                         body.price_evidence_quote = String(f.get("quote"));
@@ -433,6 +443,20 @@ export function Studio({
                         <input name="quote" maxLength={1000} />
                       </label>
                     </div>
+                    {listing.review_fingerprint && (
+                      <label className="form-field">
+                        <span>
+                          {vi
+                            ? "Thành phần đã kiểm tra (mã loại hoa, phân cách bằng dấu phẩy; bỏ trống nếu chưa chắc)"
+                            : "Reviewed flower types (comma-separated taxonomy keys; leave empty if uncertain)"}
+                        </span>
+                        <input
+                          name="composition"
+                          maxLength={500}
+                          placeholder="rose, peony"
+                        />
+                      </label>
+                    )}
                     <label className="form-field">
                       <span>{vi ? "Lý do quyết định" : "Decision reason"}</span>
                       <input
@@ -455,7 +479,13 @@ export function Studio({
                         value="accept"
                         disabled={busy}
                       >
-                        {vi ? "Duyệt & xuất bản" : "Accept & publish"}
+                        {listing.review_fingerprint
+                          ? vi
+                            ? "Duyệt bằng chứng"
+                            : "Accept evidence"
+                          : vi
+                            ? "Duyệt & xuất bản"
+                            : "Accept & publish"}
                       </button>
                       <button
                         className="button outline"
@@ -464,7 +494,13 @@ export function Studio({
                         value="correct"
                         disabled={busy}
                       >
-                        {vi ? "Lưu sửa & xuất bản" : "Correct & publish"}
+                        {listing.review_fingerprint
+                          ? vi
+                            ? "Lưu sửa bằng chứng"
+                            : "Correct evidence"
+                          : vi
+                            ? "Lưu sửa & xuất bản"
+                            : "Correct & publish"}
                       </button>
                       <button
                         className="button outline"

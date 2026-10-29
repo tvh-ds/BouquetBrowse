@@ -37,6 +37,16 @@ class AvailabilityView(Contract):
     delivery: bool | None
 
 
+class CompositionView(Contract):
+    flower: str
+    status: str
+    stated_count: int | None
+    alternatives: list[str]
+    review_state: str
+    supported: bool | None
+    visual_state: str | None
+
+
 class ListingView(Contract):
     id: str
     title: str
@@ -58,9 +68,15 @@ class ListingView(Contract):
     last_checked_at: str | None
     source_url: str | None
     source_platform: str | None
+    source_state: str | None = None
     similarity: float | None = None
     match_reasons: list[str] | None = None
     qualified: bool | None = None
+    composition: list[CompositionView] = []
+    offer_type: str = "seller_work"
+    updating: bool = False
+    capture_complete: bool | None = None
+    evidence_at: str | None = None
 
 
 class CatalogView(Contract):
@@ -107,7 +123,7 @@ class SourceView(Contract):
     id: str
     url: str | None
     platform: str
-    published_at: str
+    published_at: str | None
     last_seen_at: str
     caption: str
     version_id: str
@@ -123,10 +139,36 @@ class AssertionView(Contract):
     calibrated_confidence: float | None
 
 
+class ChangeView(Contract):
+    id: str
+    kind: str
+    listing_id: str | None
+    seller_id: str | None
+    source_url: str | None
+    advertised_at: str | None
+    observed_at: str
+    details: dict[str, Any]
+
+
 class DetailView(ListingView):
     sources: list[SourceView]
     assertions: list[AssertionView]
     warnings: list[str]
+    review_fingerprint: str | None = None
+    recent_changes: list[ChangeView] = []
+
+
+class DigestView(Contract):
+    date: str
+    partial: bool
+    coverage: dict[str, Any]
+    published_at: str
+    note: str
+    items: list[ChangeView] = []
+
+
+class DigestListView(Contract):
+    items: list[DigestView]
 
 
 class FacetsView(Contract):
