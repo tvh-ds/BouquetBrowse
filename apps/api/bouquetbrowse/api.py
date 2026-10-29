@@ -416,6 +416,7 @@ def get_seller(seller_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, detail="Seller not found.")
     from .catalog_event_models import SellerFact
     from .digests import recent_changes
+    from .seller_profiles import profile_summary
     from .visibility import visible_listings
 
     listings = [listing for listing in visible_listings(db) if listing.seller_id == seller.id]
@@ -437,9 +438,17 @@ def get_seller(seller_id: str, db: Session = Depends(get_db)):
         },
         "items": [card(db, listing) for listing in listings],
         "facts": [
-            {"field": fact.field, "value": fact.value, "evidence": {"version_id": fact.evidence.get("version_id")}}
+            {
+                "field": fact.field,
+                "value": fact.value,
+                "evidence": {
+                    "version_id": fact.evidence.get("version_id"),
+                    "profile_snapshot_id": fact.evidence.get("profile_snapshot_id"),
+                },
+            }
             for fact in facts
         ],
+        "summary": profile_summary(listings, facts),
         "recent_changes": recent_changes(db, seller_id=seller.id),
     }
 

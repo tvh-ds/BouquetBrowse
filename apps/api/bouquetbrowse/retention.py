@@ -167,6 +167,14 @@ def scrub_versions(db, version_ids, reason="expired", listing_ids=None):
 
 def expire(db, now=None):
     now = now or utcnow()
+    expired_profiles = list(db.scalars(select(ProfileSnapshot).where(ProfileSnapshot.retention_until <= now)))
+    for profile in expired_profiles:
+        for fact in db.scalars(select(SellerFact)):
+            if fact.evidence.get("profile_snapshot_id") == profile.id:
+                db.delete(fact)
+        for event in db.scalars(select(CatalogChange).where(CatalogChange.source_url == profile.source_url)):
+            if event.kind == "seller_update":
+                event.suppressed, event.details, event.source_url = True, {}, None
     versions = list(
         db.scalars(select(PostVersion.id).where(PostVersion.retention_until <= now, PostVersion.caption != ""))
     )
