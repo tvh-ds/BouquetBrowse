@@ -24,7 +24,8 @@ BEGIN
       'browser_observations','profile_snapshots','offer_analyses','association_reviews',
       'image_regions','recognition_records','recognition_support','catalog_changes',
       'daily_digests','digest_members','seller_facts','pilot_proofs',
-      'schedule_slots','runtime_status','deletion_records','call_dependencies')
+      'schedule_slots','runtime_status','deletion_records','call_dependencies',
+      'crop_embeddings','evaluation_datasets','evaluation_items')
   LOOP
     EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.%I TO bouquet_runtime',entry.tablename);
     EXECUTE format('DROP POLICY IF EXISTS runtime_service ON public.%I',entry.tablename);

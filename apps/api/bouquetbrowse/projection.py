@@ -213,6 +213,12 @@ def project_offer(db, offer, execution, analysis):
     from .pipeline import enqueue
 
     settings = get_settings()
+    if execution.configuration.get("image_embedding_provider") == "siglip":
+        from .crop_vectors import enqueue_crop
+
+        for association in image_refs:
+            if association.region and association.basis == "reviewed_region" and association.state == "accepted":
+                enqueue_crop(db, association, execution.configuration["siglip_revision"])
     if settings.openai_api_key and not listing.is_demo:
         enqueue(
             db,
