@@ -23,6 +23,8 @@ from .recognition_models import ImageRegion, RecognitionRecord, RecognitionSuppo
 
 
 def configuration_hash(configuration):
+    from .graphs import BEHAVIOR_VERSION
+
     keys = [
         "extraction_model",
         "escalation_model",
@@ -34,7 +36,7 @@ def configuration_hash(configuration):
         "image_embedding_provider",
         "siglip_revision",
     ]
-    return digest({key: configuration.get(key) for key in keys})
+    return digest({"behavior": BEHAVIOR_VERSION, **{key: configuration.get(key) for key in keys}})
 
 
 def crop_image(content, bounds: RegionBounds):
@@ -236,7 +238,21 @@ def merge_components(db, stated, results, configuration, views):
                 )
             )
             alternatives = sorted(set(observed.alternatives))
-            supported = bool(qualification and observed.state == "present" and not alternatives)
+            from .pilot import evidence_current
+            from .pilot_models import PilotProof
+
+            proof_id = qualification.report.get("proof_id") if qualification else None
+            proof = db.get(PilotProof, proof_id) if proof_id else None
+            supported = bool(
+                qualification
+                and proof
+                and proof.state == "approved"
+                and evidence_current(db, proof.dependencies)
+                and proof.report_hash == qualification.report.get("report_hash")
+                and digest(proof.report) == proof.report_hash
+                and observed.state == "present"
+                and not alternatives
+            )
             refs = [v for v in views if v["view_id"] in observed.view_ids]
             if len(refs) != len(set(observed.view_ids)):
                 raise ValueError("Unknown visual evidence view")

@@ -57,7 +57,10 @@ class RunAcceptedView(StrictModel):
 
 @router.get("/status", response_model=StatusView)
 def status(db: Database):
+    from .pilot import readiness
+
     settings = get_settings()
+    gates = readiness(db)
     row = db.scalar(select(DiscoverySettings).where(DiscoverySettings.name == "threads"))
     return {
         "enabled": settings.discovery_enabled,
@@ -66,8 +69,8 @@ def status(db: Database):
         "postgres": db.bind.dialect.name == "postgresql",
         "model_configured": bool(settings.openai_api_key),
         "browser_installed": find_spec("playwright") is not None,
-        "release_gates": row.release_gates if row else {},
-        "publication_enabled": False,
+        "release_gates": gates,
+        "publication_enabled": gates["ready"],
     }
 
 

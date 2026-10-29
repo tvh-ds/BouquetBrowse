@@ -19,6 +19,8 @@ class ImageJudgment(StrictModel):
     assessable: list[str]
     joint_predictions: list[str]
     image_only_predictions: list[str]
+    joint_record_id: str | None = None
+    image_only_record_id: str | None = None
     reviewers: list[str] = Field(min_length=1, max_length=5)
     latency_ms: int = Field(ge=0)
     cost_microusd: int = Field(ge=0)

@@ -11,16 +11,50 @@ from .seed import seed_demo
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "command", choices=["demo", "member", "openapi", "discovery-init", "browser-login", "evaluate-images"]
+        "command",
+        choices=[
+            "demo",
+            "member",
+            "openapi",
+            "discovery-init",
+            "browser-login",
+            "evaluate-images",
+            "pilot-status",
+            "pilot-stage",
+        ],
     )
     parser.add_argument("--user-id")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--input", type=Path)
     parser.add_argument("--configuration-hash")
     parser.add_argument("--dataset-kind", choices=["synthetic", "permitted_real"], default="synthetic")
+    parser.add_argument("--proof-kind", choices=["conversation", "recognition"])
     parser.add_argument("--role", choices=["tester", "reviewer", "admin"], default="tester")
     args = parser.parse_args()
-    if args.command == "evaluate-images":
+    if args.command in {"pilot-status", "pilot-stage"}:
+        from .pilot import readiness, stage_proof
+
+        with SessionLocal() as db:
+            if args.command == "pilot-stage":
+                if not args.input or not args.proof_kind:
+                    parser.error("--input and --proof-kind are required")
+                if args.input.stat().st_size > 10 * 1024 * 1024:
+                    parser.error("Evaluation input exceeds 10 MB")
+                values = [
+                    json.loads(line) for line in args.input.read_text(encoding="utf-8").splitlines() if line.strip()
+                ]
+                proof = stage_proof(db, args.proof_kind, values, None, args.dataset_kind)
+                db.commit()
+                print(
+                    json.dumps(
+                        {"id": proof.id, "report_hash": proof.report_hash, "report": proof.report},
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                )
+            else:
+                print(json.dumps(readiness(db), ensure_ascii=False, indent=2))
+    elif args.command == "evaluate-images":
         from .config import ROOT
         from .recognition_evaluation import evaluate_images
 

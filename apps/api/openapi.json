@@ -673,6 +673,166 @@
         }
       }
     },
+    "/v1/admin/pilot/readiness": {
+      "get": {
+        "summary": "Get Readiness",
+        "operationId": "get_readiness_v1_admin_pilot_readiness_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/pilot/proofs": {
+      "get": {
+        "summary": "Proofs",
+        "operationId": "proofs_v1_admin_pilot_proofs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Stage",
+        "operationId": "stage_v1_admin_pilot_proofs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProofBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/pilot/proofs/{proof_id}/approve": {
+      "post": {
+        "summary": "Approve",
+        "operationId": "approve_v1_admin_pilot_proofs__proof_id__approve_post",
+        "parameters": [
+          {
+            "name": "proof_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Proof Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/pilot/proofs/{proof_id}/revoke": {
+      "post": {
+        "summary": "Revoke",
+        "operationId": "revoke_v1_admin_pilot_proofs__proof_id__revoke_post",
+        "parameters": [
+          {
+            "name": "proof_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Proof Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "summary": "Health Live",
@@ -1731,6 +1891,33 @@
   },
   "components": {
     "schemas": {
+      "ApprovalBody": {
+        "properties": {
+          "expected_report_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Report Hash"
+          },
+          "permission_reference": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Permission Reference"
+          },
+          "joint_review_confirmed": {
+            "type": "boolean",
+            "title": "Joint Review Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_report_hash",
+          "permission_reference",
+          "joint_review_confirmed"
+        ],
+        "title": "ApprovalBody"
+      },
       "AssertionView": {
         "properties": {
           "id": {
@@ -3162,6 +3349,43 @@
           "evidence"
         ],
         "title": "PriceView"
+      },
+      "ProofBody": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "conversation",
+              "recognition"
+            ],
+            "title": "Kind"
+          },
+          "dataset_kind": {
+            "type": "string",
+            "enum": [
+              "synthetic",
+              "permitted_real"
+            ],
+            "title": "Dataset Kind",
+            "default": "synthetic"
+          },
+          "values": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Values"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "values"
+        ],
+        "title": "ProofBody"
       },
       "PublicPagePreview": {
         "properties": {

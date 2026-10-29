@@ -15,7 +15,11 @@ from .publication_gates import publication_ready
 
 def project_business_capture(db, capture_id, configuration):
     # Business-only text can enrich profiles without pretending to be an image-backed offer.
-    if not publication_ready(db, configuration):
+    from .pilot import offer_configuration
+
+    if not publication_ready(
+        db, offer_configuration({**configuration, "prompt_version": "offer-text-v1", "schema_version": "offer-v1"})
+    ):
         return 0
     capture = db.get(ConversationCapture, capture_id)
     if not capture or not capture.acquisition.get("display_allowed"):
