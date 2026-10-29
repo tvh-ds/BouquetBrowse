@@ -137,7 +137,7 @@ class OfferServices:
                 with database.SessionLocal() as write:
                     _, current_offer, current_analysis, _ = self.checked(write)
                     try:
-                        current_analysis.output = validate_interpretation(write, current_offer, result)
+                        current_analysis.output = validate_interpretation(write, current_offer, result, configuration)
                     except ValueError:
                         current_analysis.output = {
                             "claims": [],

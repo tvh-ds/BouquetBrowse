@@ -142,6 +142,7 @@ def save_view(db, execution, controller, view):
     }
     capture = record_capture(db, controller.evidence_capture(view), policy)
     profile_id = None
+    account = None
     profile = view.get("profile")
     if profile and profile.get("text") and PROFILE.fullmatch(urlsplit(profile["url"]).path):
         username = urlsplit(profile["url"]).path.strip("/")[1:]
@@ -152,6 +153,9 @@ def save_view(db, execution, controller, view):
             account = SourceAccount(platform="threads", username=username, seller_id=None)
             db.add(account)
             db.flush()
+        if account.capabilities.get("profile_suppressed"):
+            profile = None
+    if profile and account:
         content_hash = digest(profile["text"])
         snapshot = db.scalar(
             select(ProfileSnapshot).where(

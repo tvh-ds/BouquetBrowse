@@ -4,8 +4,8 @@ The original module deliveries did not finish every detail of the approved Threa
 
 | Area | Completion work |
 |---|---|
-| Seller profiles and discovery | Public business profile evidence, controlled summaries, durable planner queries, yield and independent-seller prioritization |
-| Curation | Taxonomy proposal/alias decisions and same-seller canonical consolidation |
+| Seller profiles and discovery | Implemented and merged in PR #12: public business profile evidence, controlled summaries, durable planner queries, yield and independent-seller prioritization. SQLite 178 passed; current-head CI passed including PostgreSQL, browser and clean containers |
+| Curation | Backend implemented: immutable proposal/alias promotion, collision rejection, selective reprocessing, reversible same-seller canonical links, general conversation edges/gaps and profile suppression/deletion replay. Admin screens follow in the administration module |
 | Evaluation | Durable joint/image-only batch execution, annotation/export and measured receipts |
 | Crop retrieval | Immutable reviewed-region embeddings and similarity indexing |
 | Administration | Health/proofs, general conversation explorer, taxonomy and canonical controls |

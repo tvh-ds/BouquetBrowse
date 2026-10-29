@@ -849,6 +849,251 @@
         }
       }
     },
+    "/v1/admin/curation/profiles/{account_id}/remove": {
+      "post": {
+        "summary": "Remove Business Profile",
+        "operationId": "remove_business_profile_v1_admin_curation_profiles__account_id__remove_post",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/curation/taxonomy": {
+      "get": {
+        "summary": "Terms",
+        "operationId": "terms_v1_admin_curation_taxonomy_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/curation/taxonomy/{term_id}/decision": {
+      "post": {
+        "summary": "Decide Term",
+        "operationId": "decide_term_v1_admin_curation_taxonomy__term_id__decision_post",
+        "parameters": [
+          {
+            "name": "term_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Term Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaxonomyDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/curation/canonical": {
+      "get": {
+        "summary": "Canonical",
+        "operationId": "canonical_v1_admin_curation_canonical_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/curation/canonical/link": {
+      "post": {
+        "summary": "Consolidate",
+        "operationId": "consolidate_v1_admin_curation_canonical_link_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CanonicalDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/curation/canonical/{link_id}/unlink": {
+      "post": {
+        "summary": "Unlink",
+        "operationId": "unlink_v1_admin_curation_canonical__link_id__unlink_post",
+        "parameters": [
+          {
+            "name": "link_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Link Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlinkDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "summary": "Health Live",
@@ -2024,6 +2269,43 @@
           "delivery"
         ],
         "title": "AvailabilityView"
+      },
+      "CanonicalDecision": {
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "title": "Offer Id"
+          },
+          "expected_fingerprint": {
+            "type": "string",
+            "title": "Expected Fingerprint"
+          },
+          "configuration_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configuration Id"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 10,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "offer_id",
+          "expected_fingerprint",
+          "reason"
+        ],
+        "title": "CanonicalDecision"
       },
       "CatalogView": {
         "properties": {
@@ -4118,6 +4400,87 @@
           "reason"
         ],
         "title": "TakedownBody"
+      },
+      "TaxonomyDecision": {
+        "properties": {
+          "expected_fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Fingerprint"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "promote",
+              "reject"
+            ],
+            "title": "Decision"
+          },
+          "new_version": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,80}$",
+            "title": "New Version"
+          },
+          "aliases": {
+            "items": {
+              "type": "string",
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Aliases"
+          },
+          "canonical_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,79}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonical Key"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 10,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_fingerprint",
+          "decision",
+          "new_version",
+          "aliases",
+          "reason"
+        ],
+        "title": "TaxonomyDecision"
+      },
+      "UnlinkDecision": {
+        "properties": {
+          "expected_fingerprint": {
+            "type": "string",
+            "title": "Expected Fingerprint"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 10,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_fingerprint",
+          "reason"
+        ],
+        "title": "UnlinkDecision"
       },
       "ValidationError": {
         "properties": {

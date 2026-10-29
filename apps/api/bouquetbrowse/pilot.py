@@ -166,12 +166,18 @@ def evidence_current(db, dependencies):
 def stage_proof(db, kind, values, configuration, dataset_kind="synthetic"):
     if dataset_kind not in {"synthetic", "permitted_real"}:
         raise ValueError("Record dataset provenance explicitly")
+    if configuration is None:
+        from .discovery import settings_row
+
+        configuration = settings_row(db).configuration
     configuration = offer_configuration(configuration)
     key = configuration_hash(configuration)
     if kind == "conversation":
         report, dependencies = evaluate_conversations(db, values, configuration, dataset_kind)
     elif kind == "recognition":
-        report = evaluate_images(values, key, dataset_kind)
+        from .taxonomy import vocabulary
+
+        report = evaluate_images(values, key, dataset_kind, vocabulary(db, configuration["taxonomy_version"]))
         media_ids = []
         record_ids = []
         for value in values:
@@ -211,7 +217,12 @@ def stage_proof(db, kind, values, configuration, dataset_kind="synthetic"):
         dependencies = {"media": sorted(media_ids), "recognition_records": sorted(set(record_ids))}
     else:
         raise ValueError("Unknown pilot proof kind")
-    report = {**report, "configuration_hash": key, "behavior_version": BEHAVIOR_VERSION}
+    report = {
+        **report,
+        "configuration_hash": key,
+        "behavior_version": BEHAVIOR_VERSION,
+        "taxonomy_version": configuration["taxonomy_version"],
+    }
     dataset_hash = digest(values)
     existing = db.scalar(
         select(PilotProof).where(
@@ -263,13 +274,15 @@ def approve_proof(db, proof_id, expected_hash, actor, permission_reference, join
             support = db.scalar(
                 select(RecognitionSupport).where(
                     RecognitionSupport.configuration_hash == row.configuration_hash,
-                    RecognitionSupport.taxonomy_version == "flowers-v2",
+                    RecognitionSupport.taxonomy_version == row.report.get("taxonomy_version", "flowers-v2"),
                     RecognitionSupport.flower == flower,
                 )
             )
             if not support:
                 support = RecognitionSupport(
-                    configuration_hash=row.configuration_hash, taxonomy_version="flowers-v2", flower=flower
+                    configuration_hash=row.configuration_hash,
+                    taxonomy_version=row.report.get("taxonomy_version", "flowers-v2"),
+                    flower=flower,
                 )
                 db.add(support)
             support.state = "supported" if result["supported"] else "tentative"
@@ -278,6 +291,10 @@ def approve_proof(db, proof_id, expected_hash, actor, permission_reference, join
 
 
 def readiness(db, configuration=None):
+    if configuration is None:
+        from .discovery import settings_row
+
+        configuration = settings_row(db).configuration
     key = configuration_hash(offer_configuration(configuration))
     proofs = list(
         db.scalars(

@@ -397,6 +397,108 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/admin/curation/profiles/{account_id}/remove": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Remove Business Profile */
+    post: operations["remove_business_profile_v1_admin_curation_profiles__account_id__remove_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/curation/taxonomy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Terms */
+    get: operations["terms_v1_admin_curation_taxonomy_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/curation/taxonomy/{term_id}/decision": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Decide Term */
+    post: operations["decide_term_v1_admin_curation_taxonomy__term_id__decision_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/curation/canonical": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Canonical */
+    get: operations["canonical_v1_admin_curation_canonical_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/curation/canonical/link": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Consolidate */
+    post: operations["consolidate_v1_admin_curation_canonical_link_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/curation/canonical/{link_id}/unlink": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Unlink */
+    post: operations["unlink_v1_admin_curation_canonical__link_id__unlink_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/health/live": {
     parameters: {
       query?: never;
@@ -883,6 +985,17 @@ export interface components {
       delivery: boolean | null;
     } & {
       [key: string]: unknown;
+    };
+    /** CanonicalDecision */
+    CanonicalDecision: {
+      /** Offer Id */
+      offer_id: string;
+      /** Expected Fingerprint */
+      expected_fingerprint: string;
+      /** Configuration Id */
+      configuration_id?: string | null;
+      /** Reason */
+      reason: string;
     };
     /** CatalogView */
     CatalogView: {
@@ -1527,6 +1640,31 @@ export interface components {
     TakedownBody: {
       /** Listing Id */
       listing_id: string;
+      /** Reason */
+      reason: string;
+    };
+    /** TaxonomyDecision */
+    TaxonomyDecision: {
+      /** Expected Fingerprint */
+      expected_fingerprint: string;
+      /**
+       * Decision
+       * @enum {string}
+       */
+      decision: "promote" | "reject";
+      /** New Version */
+      new_version: string;
+      /** Aliases */
+      aliases: string[];
+      /** Canonical Key */
+      canonical_key?: string | null;
+      /** Reason */
+      reason: string;
+    };
+    /** UnlinkDecision */
+    UnlinkDecision: {
+      /** Expected Fingerprint */
+      expected_fingerprint: string;
       /** Reason */
       reason: string;
     };
@@ -2248,6 +2386,188 @@ export interface operations {
         };
         content: {
           "application/json": unknown;
+        };
+      };
+    };
+  };
+  remove_business_profile_v1_admin_curation_profiles__account_id__remove_post: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path: {
+        account_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  terms_v1_admin_curation_taxonomy_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  decide_term_v1_admin_curation_taxonomy__term_id__decision_post: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path: {
+        term_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TaxonomyDecision"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  canonical_v1_admin_curation_canonical_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  consolidate_v1_admin_curation_canonical_link_post: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CanonicalDecision"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  unlink_v1_admin_curation_canonical__link_id__unlink_post: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path: {
+        link_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UnlinkDecision"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
