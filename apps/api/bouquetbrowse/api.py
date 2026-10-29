@@ -68,8 +68,10 @@ app = FastAPI(
 )
 
 from .discovery_api import router as discovery_router  # noqa: E402
+from .offer_api import router as offer_router  # noqa: E402
 
 app.include_router(discovery_router)
+app.include_router(offer_router)
 
 
 @app.middleware("http")

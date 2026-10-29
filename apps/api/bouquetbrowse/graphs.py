@@ -8,7 +8,7 @@ from langgraph.types import interrupt
 
 from .providers import CapabilityError
 
-BEHAVIOR_VERSION = "threads-graphs-v2"
+BEHAVIOR_VERSION = "threads-graphs-v3"
 
 
 class GraphState(TypedDict, total=False):
@@ -114,6 +114,9 @@ def invoke_graph(graph, execution_id, initial=None):
         snapshot = graph.get_state(config)
         if snapshot.values and not snapshot.next and not snapshot.interrupts:
             return snapshot.values
+        from langgraph.types import Command
+
+        continuation = Command(resume=True) if snapshot.interrupts else None
         return graph.invoke(
-            None if snapshot.values else initial or {"execution_id": execution_id}, config, durability="sync"
+            continuation if snapshot.values else initial or {"execution_id": execution_id}, config, durability="sync"
         )

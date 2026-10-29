@@ -103,6 +103,7 @@ def test_runtime_migration_round_trip(tmp_path):
             "20261029_0002_conversations",
             "20261029_0003_runtime",
             "20261029_0004_browser",
+            "20261029_0005_offers",
         ]
     ]
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):

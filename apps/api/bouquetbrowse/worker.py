@@ -262,6 +262,10 @@ def prepare_external(job, lease):
         from .discovery import run_discovery
 
         return run_discovery(p["execution_id"], lease)
+    if job.kind == "offer-graph":
+        from .offer_runtime import run_offer
+
+        return run_offer(p["execution_id"], lease)
     if job.kind == "sync":
         return discover(p["source"], p.get("query", "bó hoa Hà Nội"), p.get("username"))
     if job.kind == "delete-media":
@@ -366,7 +370,7 @@ def run_once(kinds=None, exclude_kinds=None):
                 current = guard(db, lease)
                 current.result = (
                     prepared
-                    if current.kind in {"delete-media", "discovery-graph"}
+                    if current.kind in {"delete-media", "discovery-graph", "offer-graph"}
                     else handle_job(db, current, prepared)
                 )
                 current.state, current.lease_until, current.lease_token, current.last_error = (

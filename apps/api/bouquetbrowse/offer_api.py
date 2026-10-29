@@ -1,0 +1,147 @@
+"""Operational conversation views are restricted to administrators."""
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from .auth import User, require_admin
+from .conversation_models import CaptureMember, ConversationCapture, OfferOccurrence
+from .db import get_db, utcnow
+from .models import Job, PostVersion
+from .offer_contracts import OfferInterpretation
+from .offer_models import AssociationReview, OfferAnalysis
+from .offers import evidence_bundle, validate_interpretation
+from .runtime_models import GraphExecution
+from .schemas import StrictModel
+
+router = APIRouter(prefix="/v1/admin/conversations", dependencies=[Depends(require_admin)])
+Database = Annotated[Session, Depends(get_db)]
+
+
+class InterpretationDecision(StrictModel):
+    expected_fingerprint: str
+    interpretation: OfferInterpretation
+
+
+@router.get("")
+def captures(db: Database):
+    rows = db.scalars(select(ConversationCapture).order_by(ConversationCapture.created_at.desc()).limit(50))
+    return {
+        "items": [
+            {
+                "id": r.id,
+                "url": r.source_url,
+                "at": r.created_at,
+                "sorting": r.sorting,
+                "coverage": r.coverage,
+                "remaining_expansions": r.remaining_expansions,
+                "stop_reason": r.stop_reason,
+            }
+            for r in rows
+        ]
+    }
+
+
+@router.get("/exceptions")
+def exceptions(db: Database):
+    rows = db.scalars(
+        select(AssociationReview)
+        .where(AssociationReview.state == "pending")
+        .order_by(AssociationReview.created_at)
+        .limit(100)
+    )
+    return {
+        "items": [
+            {"id": r.id, "offer_id": r.offer_id, "fingerprint": r.fingerprint, "kind": r.kind, "proposal": r.proposal}
+            for r in rows
+        ]
+    }
+
+
+@router.get("/offers/{offer_id}")
+def detail(offer_id: str, db: Database):
+    offer = db.get(OfferOccurrence, offer_id)
+    if not offer:
+        raise HTTPException(404, detail="Offer not found.")
+    return {
+        "id": offer.id,
+        "state": offer.state,
+        "fingerprint": offer.input_fingerprint,
+        "evidence": evidence_bundle(db, offer),
+    }
+
+
+@router.post("/offers/{offer_id}/interpretation")
+def decide(
+    offer_id: str,
+    body: InterpretationDecision,
+    db: Database,
+    user: Annotated[User, Depends(require_admin)],
+    idempotency_key: Annotated[str | None, Header()] = None,
+):
+    if not idempotency_key or len(idempotency_key) > 160:
+        raise HTTPException(400, detail="Provide a bounded Idempotency-Key.")
+    offer = db.scalar(select(OfferOccurrence).where(OfferOccurrence.id == offer_id).with_for_update())
+    if not offer:
+        raise HTTPException(404, detail="Offer not found.")
+    if offer.input_fingerprint != body.expected_fingerprint or offer.state in {"withdrawn", "rejected"}:
+        raise HTTPException(409, detail="Offer changed or is suppressed; reload evidence.")
+    analysis = db.scalar(
+        select(OfferAnalysis)
+        .where(OfferAnalysis.offer_id == offer.id, OfferAnalysis.fingerprint == offer.input_fingerprint)
+        .order_by(OfferAnalysis.created_at.desc())
+        .limit(1)
+    )
+    if not analysis:
+        raise HTTPException(409, detail="Wait for the current interpretation attempt.")
+    if analysis.state == "completed":
+        raise HTTPException(409, detail="Completed revisions are immutable; request reprocessing.")
+    validated = validate_interpretation(db, offer, body.interpretation)
+    if validated["errors"]:
+        raise HTTPException(422, detail={"code": "evidence_unresolved", "errors": validated["errors"]})
+    reviews = list(
+        db.scalars(
+            select(AssociationReview).where(
+                AssociationReview.offer_id == offer.id, AssociationReview.fingerprint == offer.input_fingerprint
+            )
+        )
+    )
+    submitted = body.model_dump(mode="json")
+    existing = next((r for r in reviews if r.decision.get("command_key") == idempotency_key), None)
+    if existing and existing.decision.get("submitted") != submitted:
+        raise HTTPException(409, detail="Decision key was used for different inputs.")
+    for review in reviews:
+        review.state, review.actor = "accepted", user.id
+        review.decision = {"command_key": idempotency_key, "submitted": submitted, "at": utcnow().isoformat()}
+    analysis.output, analysis.errors = validated, []
+    execution = db.get(GraphExecution, analysis.execution_id)
+    job = db.get(Job, execution.job_id)
+    if job.state == "processing" or job.cancelled_at:
+        raise HTTPException(409, detail="Wait for active work or create a new execution after cancellation.")
+    job.state, job.run_after, execution.state = "queued", utcnow(), "queued"
+    db.commit()
+    return {"offer_id": offer.id, "execution_id": execution.id, "state": "queued"}
+
+
+@router.get("/{capture_id}")
+def capture_detail(capture_id: str, db: Database):
+    capture = db.get(ConversationCapture, capture_id)
+    if not capture:
+        raise HTTPException(404, detail="Capture not found.")
+    rows = db.scalars(
+        select(PostVersion)
+        .join(CaptureMember, CaptureMember.version_id == PostVersion.id)
+        .where(CaptureMember.capture_id == capture.id)
+        .limit(100)
+    )
+    return {
+        "id": capture.id,
+        "coverage": capture.coverage,
+        "stop_reason": capture.stop_reason,
+        "messages": [
+            {"version_id": v.id, "post_id": v.post_id, "text": v.caption, "retention_until": v.retention_until}
+            for v in rows
+        ],
+    }

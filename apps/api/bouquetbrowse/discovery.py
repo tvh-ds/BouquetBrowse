@@ -273,10 +273,14 @@ class DiscoveryServices:
                 db.commit()
                 return {"capture_id": receipt.capture_id}
             elif name == "segment":
-                # Offer segmentation is supplied by the next module, never demo substitution.
+                from .offers import segment_capture
+
+                offers = segment_capture(db, state["capture_id"], execution.configuration)
                 db.add(
                     ExecutionEvent(
-                        execution_id=execution.id, kind="capture_ready", details={"capture_id": state.get("capture_id")}
+                        execution_id=execution.id,
+                        kind="capture_ready",
+                        details={"capture_id": state.get("capture_id"), "offer_executions": offers},
                     )
                 )
                 db.commit()
