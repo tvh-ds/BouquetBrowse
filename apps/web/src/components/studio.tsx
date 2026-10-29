@@ -2,6 +2,7 @@
 import { useCallback, useState } from "react";
 import type { Detail, Locale } from "@/lib/types";
 import { DiscoveryStudio } from "./discovery-studio";
+import { ResearchStudio } from "./research-studio";
 export interface Source {
   id: string;
   name: string;
@@ -140,6 +141,7 @@ export function Studio({
     ? [
         ["overview", vi ? "Tổng quan" : "Overview"],
         ["discovery", vi ? "Khám phá Threads" : "Threads discovery"],
+        ["research", vi ? "Nghiên cứu và vận hành" : "Research & operations"],
         ["imports", vi ? "Nhập dữ liệu" : "Import"],
         ["reviews", vi ? "Duyệt thông tin" : "Review"],
         ["jobs", vi ? "Tác vụ" : "Jobs"],
@@ -187,6 +189,7 @@ export function Studio({
         aria-busy={busy}
       >
         {tab === "discovery" && isAdmin && <DiscoveryStudio lang={lang} />}
+        {tab === "research" && isAdmin && <ResearchStudio lang={lang} />}
         {tab === "overview" && overview && (
           <section className="studio-section">
             <dl className="studio-overview">

@@ -1906,7 +1906,7 @@ export interface components {
        * Decision
        * @enum {string}
        */
-      decision: "promote" | "reject";
+      decision: "promote" | "reject" | "rebase";
       /** New Version */
       new_version: string;
       /** Aliases */

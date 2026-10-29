@@ -80,12 +80,13 @@ def project_profile_snapshot(db, snapshot_id, configuration):
 def profile_summary(listings, facts):
     """A projection of visible catalog facts, never an inferred quality assessment."""
     flowers, styles = set(), set()
+    from .visibility import flower_types
+
     for listing in listings:
-        for component in listing.attributes.get("composition", []):
-            if component.get("review_state") in {"accepted", "corrected"} and component.get("flower"):
-                flowers.add(component["flower"])
-        if listing.attributes.get("style"):
-            styles.add(str(listing.attributes["style"]))
+        flowers.update(flower_types(listing))
+        style = listing.attributes.get("style") or getattr(listing, "style", None)
+        if style:
+            styles.add(str(style))
     services = sorted({f.field for f in facts if f.field in {"delivery", "lead_days", "service_area"}})
     count = len(listings)
     return {

@@ -44,7 +44,7 @@ def command(db, key, body, actor):
 
 class TaxonomyDecision(StrictModel):
     expected_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
-    decision: Literal["promote", "reject"]
+    decision: Literal["promote", "reject", "rebase"]
     new_version: str = Field(pattern=r"^[a-zA-Z0-9_-]{1,80}$")
     aliases: list[Annotated[str, Field(min_length=1, max_length=80)]] = Field(max_length=30)
     canonical_key: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]{0,79}$")
@@ -118,9 +118,41 @@ def decide_term(term_id: str, body: TaxonomyDecision, db: Database, actor: Actor
             raise ValueError("Proposal changed; reload before deciding")
         if body.decision == "promote":
             version = promote(db, row, body.new_version, body.aliases, actor.id, body.reason, body.canonical_key)
-        else:
+        elif body.decision == "reject":
             row.state, row.evaluation = "rejected", {**row.evaluation, "actor": actor.id, "reason": body.reason}
             version = row.taxonomy_version
+        else:
+            from .discovery import dialect_insert, settings_row
+            from .runtime_models import DiscoverySettings
+
+            control = settings_row(db)
+            control = db.scalar(
+                select(DiscoverySettings)
+                .where(DiscoverySettings.id == control.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+            version = control.configuration.get("taxonomy_version", "flowers-v2")
+            if body.new_version != version or row.taxonomy_version == version:
+                raise ValueError("Rebase must target the current, different taxonomy version")
+            db.execute(
+                dialect_insert(db)(TaxonomyTerm)
+                .values(
+                    key=row.key,
+                    taxonomy_version=version,
+                    state="proposed",
+                    aliases=body.aliases,
+                    evaluation={"origin_proposal": row.id, "actor": actor.id, "reason": body.reason},
+                )
+                .on_conflict_do_nothing(index_elements=["taxonomy_version", "key"])
+            )
+            row.state, row.evaluation = (
+                "superseded_proposal",
+                {**row.evaluation, "actor": actor.id, "reason": body.reason},
+            )
+            row = db.scalar(
+                select(TaxonomyTerm).where(TaxonomyTerm.taxonomy_version == version, TaxonomyTerm.key == row.key)
+            )
         receipt.result = {"id": row.id, "state": row.state, "version": version}
         db.commit()
         return receipt.result

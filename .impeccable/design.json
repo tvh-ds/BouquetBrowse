@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-29T20:19:00Z",
+  "title": "Design System: BouquetBrowse",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "primary", "displayName": "Forest ink" },
+      "canvas": { "role": "neutral", "displayName": "Warm ivory canvas" },
+      "paper": { "role": "neutral", "displayName": "Paper" },
+      "muted": { "role": "neutral", "displayName": "Muted botanical text" },
+      "soft": { "role": "neutral", "displayName": "Soft green surface" },
+      "line": { "role": "neutral", "displayName": "Fine neutral rule" },
+      "blush": { "role": "secondary", "displayName": "Restrained blush selection" },
+      "error": { "role": "secondary", "displayName": "Error red" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Editorial botanical heading", "purpose": "Self-hosted Bodoni Moda for page and section headings." },
+      "body": { "displayName": "Vietnamese body and controls", "purpose": "Self-hosted Be Vietnam Pro for evidence, controls and readable Vietnamese text." },
+      "metadata-mobile": { "displayName": "Essential phone catalog metadata", "purpose": "Seller caption, attributes, price provenance and posted date at widths up to 640px; not a universal admin minimum." }
+    },
+    "shadows": [
+      { "name": "comparison-tray", "value": "0 6px 34px #173a2d2b", "purpose": "The fixed comparison tray is lifted; research rows and inspectors remain flat." }
+    ],
+    "motion": [
+      { "name": "button-state", "value": "background .15s, color .15s", "purpose": "Shared button state transition; disabled under reduced motion." },
+      { "name": "catalog-image", "value": "transform .45s", "purpose": "Gentle catalog image hover scale; disabled under reduced motion." }
+    ],
+    "breakpoints": [
+      { "name": "container-medium", "value": "1100px" },
+      { "name": "header-and-catalog", "value": "800px" },
+      { "name": "research-and-filter-sheet", "value": "640px" },
+      { "name": "phone-catalog", "value": "600px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Research primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Forest action for a concrete save, run or attestation. Busy and unavailable actions disable the control.",
+      "html": "<button class=\"ds-research-primary\" type=\"button\">Save reference annotation</button>",
+      "css": ".ds-research-primary{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:11px 19px;border:1px solid transparent;border-radius:9px;background:var(--ink);color:var(--canvas);font:500 12px/1.4 var(--body);cursor:pointer;transition:none}.ds-research-primary:hover:not(:disabled){background:#2c5140;color:var(--canvas)}.ds-research-primary:focus-visible{outline:3px solid #608566;outline-offset:4px}.ds-research-primary:disabled{opacity:.6;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-research-primary{transition:none}}"
+    },
+    {
+      "name": "Secondary action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Soft-green secondary button from the shared catalog system.",
+      "html": "<button class=\"ds-secondary\" type=\"button\">Compare bouquets</button>",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:11px 19px;border:1px solid transparent;border-radius:9px;background:var(--soft);color:var(--ink);font:500 12px/1.4 var(--body);cursor:pointer;transition:background .15s ease,color .15s ease}.ds-secondary:focus-visible{outline:3px solid #608566;outline-offset:4px}.ds-secondary:disabled{opacity:.6;cursor:wait}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
+    },
+    {
+      "name": "Research outlined action",
+      "kind": "button",
+      "description": "Outline actions inspect adjacent evidence, refresh a workspace or take secondary operational steps.",
+      "html": "<button class=\"ds-research-outline\" type=\"button\">Inspect conversation</button>",
+      "css": ".ds-research-outline{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;padding:11px 19px;border:1px solid #9ca99d;border-radius:9px;background:transparent;color:var(--ink);font:500 12px/1.4 var(--body);cursor:pointer;transition:none}.ds-research-outline:hover:not(:disabled){background:var(--soft);color:var(--ink)}.ds-research-outline:focus-visible{outline:3px solid #608566;outline-offset:4px}.ds-research-outline:disabled{opacity:.6;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-research-outline{transition:none}}"
+    },
+    {
+      "name": "Research native field",
+      "kind": "input",
+      "description": "Visible label and canvas field for reviewed reasons or identifiers; textareas and native selects share the treatment.",
+      "html": "<label class=\"ds-field\">Review reason<input class=\"ds-field-input\" name=\"reason\" placeholder=\"Checked against source evidence\" /></label>",
+      "css": ".ds-field{display:grid;gap:.5rem;color:var(--ink);font:14px/1.65 var(--body)}.ds-field-input{min-width:0;max-width:100%;min-height:44px;padding:.75rem;border:1px solid #9ca99d;border-radius:9px;background:var(--canvas);color:var(--ink);caret-color:var(--ink);font:inherit}.ds-field-input:focus-visible{outline:3px solid #608566;outline-offset:4px}"
+    },
+    {
+      "name": "Studio navigation",
+      "kind": "nav",
+      "description": "Existing Studio tab language; admin research remains part of the same operational shell.",
+      "html": "<div class=\"ds-studio-nav\" role=\"tablist\" aria-label=\"Catalog operations\"><button class=\"ds-studio-tab\" role=\"tab\" aria-selected=\"false\" type=\"button\">Overview</button><button class=\"ds-studio-tab\" role=\"tab\" aria-selected=\"true\" type=\"button\">Research &amp; operations</button></div>",
+      "css": ".ds-studio-nav{display:flex;gap:10px;flex-wrap:wrap;margin:25px 0;font-family:var(--body)}.ds-studio-tab{min-height:44px;padding:10px 15px;border:1px solid var(--line);border-radius:7px;background:none;color:var(--ink);font:400 12px/1.65 var(--body);cursor:pointer}.ds-studio-tab[aria-selected=true]{background:var(--ink);color:white;border-color:var(--ink)}.ds-studio-tab:focus-visible{outline:3px solid #608566;outline-offset:4px}@media(max-width:600px){.ds-studio-nav{gap:7px}.ds-studio-tab{font-size:10px;padding:8px 12px}}"
+    },
+    {
+      "name": "Fictional evidence badge",
+      "kind": "chip",
+      "refersTo": "demo-badge",
+      "description": "Conditional record-level demonstration label placed beside that record's price evidence; not a workflow status.",
+      "html": "<span class=\"ds-demo-badge\">Fictional demo</span>",
+      "css": ".ds-demo-badge{display:block;width:fit-content;padding:2px 6px;margin-bottom:5px;border-radius:4px;background:var(--soft);color:var(--ink);font:400 12px/1.5 var(--body)}"
+    },
+    {
+      "name": "Evidence inspector",
+      "kind": "card",
+      "description": "Flat bordered container for selected conversation evidence, annotation or proof; native details hold dense identifiers.",
+      "html": "<section class=\"ds-inspector\"><h3 class=\"ds-inspector-title\">Conversation evidence</h3><p class=\"ds-inspector-copy\">Reply ancestor not captured.</p><details class=\"ds-inspector-details\"><summary class=\"ds-inspector-summary\">Evidence identifiers</summary><p class=\"ds-inspector-copy\">Fictional reference: capture-example-001</p></details></section>",
+      "css": ".ds-inspector{margin-top:1.5rem;padding:1.5rem;border:1px solid var(--line);border-radius:12px;color:var(--ink);font:14px/1.65 var(--body)}.ds-inspector-title{margin:0;font-size:17px;font-weight:500;line-height:1.5}.ds-inspector-copy{overflow-wrap:anywhere}.ds-inspector-details{margin-block:1.25rem}.ds-inspector-summary{cursor:pointer;min-height:44px;padding-block:.65rem;text-underline-offset:4px}.ds-inspector-summary:focus-visible{outline:3px solid #608566;outline-offset:4px}@media(max-width:640px){.ds-inspector{padding:1rem}}"
+    },
+    {
+      "name": "Operational summary",
+      "kind": "custom",
+      "description": "Three-column definition summary of current capability and evidence state; a single column on phones.",
+      "html": "<dl class=\"ds-operational-summary\"><div><dt class=\"ds-summary-term\">Recurring collection</dt><dd class=\"ds-summary-value\">Not activated</dd></div><div><dt class=\"ds-summary-term\">Publication gates</dt><dd class=\"ds-summary-value\">Closed</dd></div><div><dt class=\"ds-summary-term\">Model budget</dt><dd class=\"ds-summary-value\">Configured limit</dd></div></dl>",
+      "css": ".ds-operational-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.25rem;padding-block:1.25rem;border-block:1px solid var(--line);color:var(--ink);font:14px/1.65 var(--body)}.ds-summary-term{color:var(--muted)}.ds-summary-value{margin:.5rem 0 0;font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}@media(max-width:640px){.ds-operational-summary{grid-template-columns:1fr}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A florist's discovery journal",
+    "overview": "Code-led documentation of the incumbent warm ivory, forest, restrained blush and editorial serif system. Bouquet photography supplies most color; readable Vietnamese text and compact evidence labels support discovery and catalog operations. Research extends the same Studio shell through native controls, ruled rows and flat evidence inspectors. No approved visual comp or replacement identity is recorded.",
+    "keyCharacteristics": [
+      "Photo-forward catalog with softly rounded image frames.",
+      "Forest controls, ivory canvas and fine neutral rules.",
+      "Expressive headings paired with compact evidence labels.",
+      "Research actions remain adjacent to their evidence and explicit readiness state."
+    ],
+    "rules": [
+      { "name": "The Photography Rule", "body": "Let bouquet images carry varied color; preserve the restrained botanical interface around them.", "section": "colors" }
+    ],
+    "dos": [
+      "Do preserve the original finding your flowers tagline and self-hosted font pair.",
+      "Do keep loading, unknown, stale, unconfigured, synthetic, under-sampled and approved evidence states explicit.",
+      "Do preserve unsaved local research state during workspace switches; leaving the outer Research tab does not provide draft persistence.",
+      "Do use contained evidence images, wrapping identifiers and locally scrolling proof tables."
+    ],
+    "donts": [
+      "Don't visually conflate recommendations with qualified price benchmarks.",
+      "Don't imply that extraction review verifies inventory or synthetic evaluation establishes live quality.",
+      "Don't turn scoped research finish evidence into a whole-application visual or accessibility certification.",
+      "Don't claim seller-summary visual validation; that extension was reviewed from code only."
+    ]
+  }
+}

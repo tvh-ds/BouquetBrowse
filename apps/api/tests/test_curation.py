@@ -63,6 +63,30 @@ def test_taxonomy_collision_is_rejected(client, db, admin_headers):
     assert "two flower types" in response.text
 
 
+def test_old_proposal_can_be_rebased_without_mutating_previous_vocabulary(client, db, admin_headers):
+    row = TaxonomyTerm(key="fictional-filler", taxonomy_version="flowers-v1", aliases=[], evaluation={})
+    db.add(row)
+    db.commit()
+    response = client.post(
+        f"/v1/admin/curation/taxonomy/{row.id}/decision",
+        json={
+            "expected_fingerprint": fingerprint(row),
+            "decision": "rebase",
+            "new_version": "flowers-v2",
+            "aliases": ["fictional filler"],
+            "reason": "Review against the currently active taxonomy",
+        },
+        headers={**admin_headers, "Idempotency-Key": "rebase-proposal"},
+    )
+    assert response.status_code == 200, response.text
+    db.expire_all()
+    assert row.state == "superseded_proposal"
+    rebased = db.get(TaxonomyTerm, response.json()["id"])
+    assert rebased.state == "proposed" and rebased.taxonomy_version == "flowers-v2"
+    assert "fictional-filler" not in vocabulary(db, "flowers-v1")
+    assert "fictional-filler" not in vocabulary(db, "flowers-v2")
+
+
 def test_canonical_links_are_audited_reversible_and_seller_bounded(client, db, admin_headers):
     capture(
         db,

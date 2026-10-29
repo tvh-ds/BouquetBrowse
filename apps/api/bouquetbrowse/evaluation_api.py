@@ -42,7 +42,7 @@ class DatasetBody(StrictModel):
 class AnnotationBody(StrictModel):
     expected_version: int = Field(ge=1)
     labels: list[Annotated[str, Field(max_length=80)]] = Field(max_length=40)
-    assessable: list[Annotated[str, Field(max_length=80)]] = Field(min_length=1, max_length=40)
+    assessable: list[Annotated[str, Field(max_length=80)]] = Field(max_length=40)
     reviewers: list[Annotated[str, Field(min_length=1, max_length=160)]] = Field(min_length=1, max_length=5)
     split: Literal["development", "holdout"]
     image_family: str = Field(min_length=1, max_length=160)
