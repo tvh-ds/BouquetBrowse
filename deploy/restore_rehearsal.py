@@ -19,7 +19,7 @@ from bouquetbrowse import models  # noqa: F401
 from bouquetbrowse.config import get_settings
 from bouquetbrowse.db import utcnow
 from bouquetbrowse.models import MediaAsset
-from bouquetbrowse.recovery import private_directory, replay_deletions, verify_manifest
+from bouquetbrowse.recovery import postgres_cli_connection, postgres_cli_environment, private_directory, replay_deletions, verify_manifest
 from bouquetbrowse.retention import delete_checkpoints
 from bouquetbrowse.runtime_models import GraphExecution
 from bouquetbrowse.storage import validate_key
@@ -47,8 +47,8 @@ def main():
     files = {Path(row["name"]).suffix: args.manifest.resolve().parent / row["name"] for row in manifest["files"]}
     if ".dump" not in files or ".tar" not in files:
         raise SystemExit("Manifest requires separate database and media artifacts.")
-    environment = {**os.environ, "PGPASSWORD": target.password or ""}
-    connection = target.set(drivername="postgresql", password=None).render_as_string(hide_password=False)
+    environment = postgres_cli_environment(target.password)
+    connection = postgres_cli_connection(target)
     subprocess.run(["pg_restore", "--no-owner", "--no-privileges", "--dbname", connection, str(files[".dump"])], env=environment, check=True)
     if args.deletions.stat().st_size > 20 * 1024 * 1024:
         raise SystemExit("Deletion ledger exceeds 20 MB.")

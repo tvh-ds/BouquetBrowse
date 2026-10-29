@@ -12,14 +12,24 @@ if ($Enable) {
 }
 $taskUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 foreach ($taskRole in @('scheduler','browser','offer')) {
+    $existingTask = Get-ScheduledTask -TaskName "BouquetBrowse-$taskRole" -ErrorAction SilentlyContinue
+    if ($existingTask -and $existingTask.Description -ne 'BouquetBrowse local runtime v1') {
+        throw 'A task with this name lacks BouquetBrowse ownership evidence; no tasks will be replaced.'
+    }
+}
+foreach ($taskRole in @('scheduler','browser','offer')) {
     $taskArguments = '-NoProfile -NonInteractive -WindowStyle Hidden -File "' + (Join-Path $PSScriptRoot 'run-local-role.ps1') + '" -Role ' + $taskRole
     $taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $taskArguments -WorkingDirectory $taskRoot
     $taskTrigger = New-ScheduledTaskTrigger -AtLogOn -User $taskUser
     $taskSettings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     # StartWhenAvailable and WakeToRun deliberately remain false; the app records missed slots.
     $taskPrincipal = New-ScheduledTaskPrincipal -UserId $taskUser -LogonType Interactive -RunLevel Limited
-    $task = New-ScheduledTask -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings -Principal $taskPrincipal
+    $task = New-ScheduledTask -Action $taskAction -Trigger $taskTrigger -Settings $taskSettings -Principal $taskPrincipal -Description 'BouquetBrowse local runtime v1'
     if (-not $Enable) { $task.Settings.Enabled = $false }
+    $existingTask = Get-ScheduledTask -TaskName "BouquetBrowse-$taskRole" -ErrorAction SilentlyContinue
+    if ($existingTask -and $existingTask.Description -ne 'BouquetBrowse local runtime v1') {
+        throw 'A task with this name lacks BouquetBrowse ownership evidence; it will not be replaced.'
+    }
     Register-ScheduledTask -TaskName "BouquetBrowse-$taskRole" -InputObject $task -Force | Out-Null
 }
 Write-Output $(if ($Enable) { 'Startup tasks registered for the next sign-in. No task was started now.' } else { 'Startup tasks registered disabled. Enable only after the separately commanded live validation.' })

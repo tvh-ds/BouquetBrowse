@@ -132,6 +132,8 @@ def purge_listing(db, listing_id, extended=True):
 
 def handle_job(db, job, prepared=None):
     p = job.payload
+    if job.kind in {"backup", "snapshot-deletions", "deliver-alert", "prune-alerts"}:
+        return prepared
     if job.kind == "delete-evaluation-exports":
         from .research_models import EvaluationDataset
 
@@ -303,6 +305,18 @@ def prepare_external(job, lease):
     from .leases import guard
 
     p = job.payload
+    if job.kind == "backup":
+        from .backups import create_backup
+
+        return create_backup(SessionLocal, lease=lease)
+    if job.kind == "snapshot-deletions":
+        from .backups import snapshot_deletions
+
+        return snapshot_deletions(SessionLocal)
+    if job.kind in {"deliver-alert", "prune-alerts"}:
+        from .maintenance import deliver, prune_alert_logs
+
+        return deliver(p) if job.kind == "deliver-alert" else prune_alert_logs()
     if job.kind == "delete-evaluation-exports":
         from .evaluation import delete_exports
 
@@ -501,6 +515,9 @@ def schedule_due():
         from .local_schedule import tick
 
         tick(db)
+        from .maintenance import tick as maintenance_tick
+
+        maintenance_tick(db)
         now = utcnow()
         enqueue(db, "retention", {}, f"retention:{now.date()}")
         for source in capability_status():

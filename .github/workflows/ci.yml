@@ -57,6 +57,25 @@ jobs:
           uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head
           uv run --project apps/api python deploy/setup_graph_checkpoints.py
           uv run --project apps/api python deploy/verify_migration.py
+      - name: Synthetic PostgreSQL backup and isolated restore
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://bouquet:test-only@127.0.0.1:5432/bouquetbrowse_test
+          RECOVERY_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          mkdir -p .data/pg-tools
+          cat > .data/pg-tools/pg_dump <<'SH'
+          #!/usr/bin/env bash
+          exec docker exec -i -e PGPASSWORD "$RECOVERY_POSTGRES_CONTAINER" pg_dump "$@"
+          SH
+          cat > .data/pg-tools/pg_restore <<'SH'
+          #!/usr/bin/env bash
+          archive="${@: -1}"
+          args=("${@:1:$(($#-1))}")
+          exec docker exec -i -e PGPASSWORD "$RECOVERY_POSTGRES_CONTAINER" pg_restore "${args[@]}" < "$archive"
+          SH
+          chmod +x .data/pg-tools/pg_dump .data/pg-tools/pg_restore
+          export PATH="$PWD/.data/pg-tools:$PATH"
+          uv run --project apps/api python deploy/verify_backup_restore.py
       - run: npm ci --ignore-scripts --no-fund
         working-directory: apps/web
       - name: Contract regeneration is deterministic
@@ -86,3 +105,11 @@ jobs:
           node deploy/smoke.mjs
       - if: failure()
         run: docker compose logs --tail 100
+  windows-startup:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Isolated Task Scheduler lifecycle
+        shell: powershell
+        run: powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -File deploy/test-local-tasks.ps1

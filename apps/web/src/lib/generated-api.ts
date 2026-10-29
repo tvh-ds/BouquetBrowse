@@ -397,6 +397,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/admin/operations/alerts/{alert_id}/acknowledge": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Acknowledge */
+    post: operations["acknowledge_v1_admin_operations_alerts__alert_id__acknowledge_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/admin/operations/status": {
     parameters: {
       query?: never;
@@ -1082,6 +1099,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** AlertDecision */
+    AlertDecision: {
+      /** Expected Version */
+      expected_version: number;
+    };
     /** AnnotationBody */
     AnnotationBody: {
       /** Expected Version */
@@ -2612,6 +2634,41 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["ApprovalBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  acknowledge_v1_admin_operations_alerts__alert_id__acknowledge_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        alert_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AlertDecision"];
       };
     };
     responses: {

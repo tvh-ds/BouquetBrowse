@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     planner_model: str = "gpt-6.1-sol"
     discovery_run_budget_usd: float = 0.35
     offer_budget_usd: float = 0.10
+    backups_enabled: bool = False
+    backup_directory: Path = ROOT / ".data" / "backups"
+    alert_directory: Path = ROOT / ".data" / "alerts"
 
     @model_validator(mode="after")
     def validate_environment(self):
