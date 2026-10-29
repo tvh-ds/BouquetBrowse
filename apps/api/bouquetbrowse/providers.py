@@ -2,7 +2,6 @@
 
 import base64
 from datetime import UTC, datetime
-from functools import lru_cache
 
 from openai import OpenAI
 from sqlalchemy import func, select, text
@@ -116,7 +115,6 @@ def structured_extract(caption: str, image_bytes: list[bytes] | None = None):
     return ProductExtraction.model_validate(result["extraction"]), result["cost_usd"]
 
 
-@lru_cache(maxsize=256)
 def _live_text_vector(query: str, model: str):
     from .model_calls import invoke_once
     from .pipeline import digest

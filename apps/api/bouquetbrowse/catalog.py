@@ -437,9 +437,10 @@ def similarity(a: Listing, b: Listing):
     return score, reasons
 
 
-def similar(db: Session, target: Listing, limit=12):
-    rows = []
-    candidates = prepare_snapshot(db)
+def selected_image_vectors(db, candidates):
+    from .models import ListingRevision
+
+    selected = {listing.id: listing for listing in candidates}
     images = {}
     for listing_id, embedding in db.execute(
         select(ListingSource.listing_id, ImageEmbedding)
@@ -447,7 +448,26 @@ def similar(db: Session, target: Listing, limit=12):
         .join(PostMedia, PostMedia.version_id == ListingSource.version_id)
         .join(ImageEmbedding, ImageEmbedding.media_id == PostMedia.media_id)
     ).all():
+        listing = selected.get(listing_id)
+        if not listing:
+            continue
+        if listing.attributes.get("offer_id"):
+            revision = db.get(ListingRevision, listing.current_revision_id) if listing.current_revision_id else None
+            if (
+                not revision
+                or embedding.media_id not in revision.snapshot.get("media_ids", [])
+                or embedding.media_id in revision.snapshot.get("media_regions", {})
+            ):
+                # Whole-post/carousel vectors cannot stand in for a selected product crop.
+                continue
         images.setdefault(listing_id, []).append(embedding)
+    return images
+
+
+def similar(db: Session, target: Listing, limit=12):
+    rows = []
+    candidates = prepare_snapshot(db)
+    images = selected_image_vectors(db, candidates)
     texts = {entry.revision_id: entry for entry in db.scalars(select(TextEmbedding)).all()}
     for listing in candidates:
         if listing.id == target.id:

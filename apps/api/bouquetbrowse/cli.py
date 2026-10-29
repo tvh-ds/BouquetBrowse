@@ -21,6 +21,10 @@ def main():
             "evaluate-images",
             "pilot-status",
             "pilot-stage",
+            "operations-ready",
+            "deletion-export",
+            "deletion-replay",
+            "backup-media",
         ],
     )
     parser.add_argument("--user-id")
@@ -31,7 +35,82 @@ def main():
     parser.add_argument("--proof-kind", choices=["conversation", "recognition"])
     parser.add_argument("--role", choices=["tester", "reviewer", "admin"], default="tester")
     args = parser.parse_args()
-    if args.command in {"pilot-status", "pilot-stage"}:
+    if args.command == "operations-ready":
+        from .discovery import settings_row
+        from .local_schedule import collection_ready
+
+        with SessionLocal() as db:
+            print(
+                json.dumps(
+                    {
+                        "ready": collection_ready(db, get_settings(), settings_row(db)),
+                        "note": "No browsing or model call was made.",
+                    }
+                )
+            )
+    elif args.command in {"deletion-export", "deletion-replay", "backup-media"}:
+        from .recovery import export_deletions, replay_deletions
+
+        with SessionLocal() as db:
+            if args.command == "deletion-export":
+                if args.output:
+                    print(f"Exported {export_deletions(db, args.output)} content-free deletion records.")
+                else:
+                    from sqlalchemy import select
+
+                    from .operations_models import DeletionRecord
+
+                    for record in db.scalars(select(DeletionRecord)):
+                        print(
+                            json.dumps(
+                                {
+                                    "subject_kind": record.subject_kind,
+                                    "subject_id": record.subject_id,
+                                    "reason": record.reason,
+                                }
+                            )
+                        )
+            elif args.command == "deletion-replay":
+                if not args.input or args.input.stat().st_size > 20 * 1024 * 1024:
+                    parser.error("Provide a content-free deletion ledger smaller than 20 MB")
+                values = [
+                    json.loads(line) for line in args.input.read_text(encoding="utf-8").splitlines() if line.strip()
+                ]
+                count = replay_deletions(db, values)
+                db.commit()
+                print(
+                    f"Replayed {count} deletion records. Drain delete-media/checkpoint jobs before serving a restored database."
+                )
+            else:
+                import io
+                import sys
+                import tarfile
+
+                from sqlalchemy import select
+
+                from .db import utcnow
+                from .models import MediaAsset
+                from .storage import get_media_bytes, validate_key
+
+                keys = list(
+                    db.scalars(
+                        select(MediaAsset.storage_key)
+                        .where(
+                            MediaAsset.state == "ready",
+                            MediaAsset.storage_key.is_not(None),
+                            MediaAsset.retention_until > utcnow(),
+                        )
+                        .distinct()
+                    )
+                )
+                db.commit()
+                with tarfile.open(fileobj=sys.stdout.buffer, mode="w|") as archive:
+                    for key in keys:
+                        content = get_media_bytes(validate_key(key))
+                        entry = tarfile.TarInfo(key)
+                        entry.size, entry.mode = len(content), 0o600
+                        archive.addfile(entry, io.BytesIO(content))
+    elif args.command in {"pilot-status", "pilot-stage"}:
         from .pilot import readiness, stage_proof
 
         with SessionLocal() as db:

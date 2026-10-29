@@ -299,9 +299,9 @@ class DiscoveryServices:
                 receipt = db.get(ActionReceipt, state.get("action_receipt_id"))
                 finished = steps >= 8 or receipt and receipt.action == "finish"
                 if finished:
-                    frontier.due_at = (
-                        utcnow() + timedelta(days=7) if frontier.kind == "profile" else utcnow() + timedelta(hours=4)
-                    )
+                    from .local_schedule import next_check
+
+                    frontier.due_at = next_check(frontier)
                 execution.progress = {
                     **execution.progress,
                     "task_steps": steps,

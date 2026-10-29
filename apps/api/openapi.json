@@ -833,6 +833,22 @@
         }
       }
     },
+    "/v1/admin/operations/status": {
+      "get": {
+        "summary": "Status",
+        "operationId": "status_v1_admin_operations_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "summary": "Health Live",

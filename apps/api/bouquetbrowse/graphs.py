@@ -8,7 +8,7 @@ from langgraph.types import interrupt
 
 from .providers import CapabilityError
 
-BEHAVIOR_VERSION = "threads-graphs-v5"
+BEHAVIOR_VERSION = "threads-graphs-v6"
 
 
 class GraphState(TypedDict, total=False):
@@ -97,13 +97,41 @@ def postgres_checkpointer(database_url):
 
     if not database_url.startswith("postgresql"):
         raise CapabilityError("Recurring graphs require PostgreSQL checkpoints.", "postgres_required")
+
+    class ApplicationSaver(PostgresSaver):
+        def __init__(self, *args, **kwargs):
+            from threading import RLock
+
+            super().__init__(*args, **kwargs)
+            self.application_lock = RLock()
+
+        def check_active(self, config):
+            row = self.conn.execute(
+                "SELECT state FROM public.graph_executions WHERE id=%s FOR SHARE",
+                (config["configurable"]["thread_id"],),
+            ).fetchone()
+            if row and row["state"] == "withdrawn":
+                raise CapabilityError("Deleted execution cannot recreate checkpoint state.", "source_removed")
+
+        def put(self, config, checkpoint, metadata, new_versions):
+            # Serialize source deletion against the check plus checkpoint write. The
+            # deletion transaction changes this row before scheduling checkpoint purge.
+            with self.application_lock, self.conn.transaction():
+                self.check_active(config)
+                return super().put(config, checkpoint, metadata, new_versions)
+
+        def put_writes(self, config, writes, task_id, task_path=""):
+            with self.application_lock, self.conn.transaction():
+                self.check_active(config)
+                return super().put_writes(config, writes, task_id, task_path)
+
     url = make_url(database_url).set(drivername="postgresql").render_as_string(hide_password=False)
     with psycopg.connect(
         url, autocommit=True, prepare_threshold=0, row_factory=dict_row, options="-c search_path=graph_checkpoints"
     ) as connection:
         if not connection.execute("SELECT to_regclass('graph_checkpoints.checkpoints') AS name").fetchone()["name"]:
             raise CapabilityError("Migration owner must initialize graph checkpoints first.", "checkpoints_not_ready")
-        yield PostgresSaver(connection, serde=JsonPlusSerializer(pickle_fallback=False))
+        yield ApplicationSaver(connection, serde=JsonPlusSerializer(pickle_fallback=False))
 
 
 def invoke_graph(graph, execution_id, initial=None):

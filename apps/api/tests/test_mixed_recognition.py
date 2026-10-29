@@ -268,6 +268,12 @@ def test_image_only_path_omits_conversation_and_reuses_receipt(db, monkeypatch):
         }
     ]
     bundle = {"messages": ["PRIVATE_BUYER_TEXT"], "media": []}
+    db.add(
+        MediaAsset(
+            id="synthetic-media", state="ready", checksum="a" * 64, retention_until=utcnow() + timedelta(days=30)
+        )
+    )
+    db.commit()
     recognition.recognize_call(bundle, views, CONFIG, purpose="image_only")
     recognition.recognize_call(bundle, views, CONFIG, purpose="image_only")
     assert len(calls) == 1

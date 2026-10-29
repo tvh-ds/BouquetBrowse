@@ -189,6 +189,15 @@ def recognize_call(bundle, views, configuration, purpose="joint", stronger=False
         scope = CURRENT_SCOPE.get()
         if scope:
             verify_scope(db, scope)
+        for view in views:
+            asset = db.get(MediaAsset, view["media_id"])
+            if (
+                not asset
+                or asset.state != "ready"
+                or asset.retention_until
+                and aware(asset.retention_until) <= utcnow()
+            ):
+                raise CapabilityError("Media was withdrawn during recognition.", "source_removed")
         # The call receipt closes a crash between paid completion and this cache write.
         if not db.scalar(select(RecognitionRecord.id).where(RecognitionRecord.cache_key == key)):
             db.add(
