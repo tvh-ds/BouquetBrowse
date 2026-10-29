@@ -68,6 +68,7 @@ def create_execution(db, kind, command_key, configuration, input_fingerprint, of
         offer_id=offer_id,
         deadline=utcnow() + timedelta(minutes=20) if kind == "discovery" else None,
         budget_microusd=microusd(budget),
+        progress={"offer_fingerprint": input_fingerprint} if kind == "offer" else {},
     )
     db.add(execution)
     db.flush()

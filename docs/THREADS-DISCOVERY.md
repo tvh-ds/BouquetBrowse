@@ -40,7 +40,7 @@ Digests project durable catalog-change events into Hanoi-day snapshots after the
 | 10 Conversation foundation | Implemented: schema, contracts, commands, legacy migration and 12 regression tests; no live collection yet |
 | 11 Durable runtime | Implemented with synthetic tests: fenced leases, durable model receipts, compact LangGraph workflows and private PostgreSQL checkpointer setup; no live browser/offer graph services enabled yet |
 | 12 Threads browser discovery | Implemented with synthetic Chromium tests: bounded controller, visible-UI adapters, durable frontier/captures, dedicated login, authenticated admin APIs. Collector access/coverage with the dedicated profile remains unvalidated |
-| 13 Conversation offers | Planned |
+| 13 Conversation offers | Implemented with synthetic conversations: independent offer graphs, seller/ancestor price binding, exact quote validation, confirmation derivations, private exceptions and atomic revision receipts. Publication remains gated; no live quality claim |
 | 14 Mixed-flower recognition | Planned |
 | 15 Catalog, profiles, digests | Planned |
 | 16 Real pilot validation | Planned; no measured quality claims |
@@ -49,3 +49,5 @@ Digests project durable catalog-change events into Hanoi-day snapshots after the
 Use ten seller-rooted and ten buyer-request real conversations, jointly reviewed once. Require zero wrong-seller publication, unsupported commercial binding or fabricated commercial claims; ambiguous cases must abstain. Benchmark 100 distinct mixed-bouquet images, approximately 60 development/40 holdout split by seller/image family, with 20% double review. Report joint and image-only precision/recall, uncertainty, abstention, latency and cost separately. A supported category targets >=95% observed precision and >=80% recall, with >=20 positive/20 negative examples overall and >=10 each in holdout; otherwise tentative. Evaluation identities cannot publish. Retain commercial challenge and retrieval/cohort tests.
 
 Every module follows branch/test/push/PR/attach/current-head CI/diff review/squash merge. Only fictional/sanitized fixtures enter Git. Real captures, annotations, browser profiles and exports stay private. Capabilities, quality and live coverage must be reported separately from implementation and fixture tests.
+
+The user deferred live sign-in, model keys and paid/live tests until an explicit later command. Continue implementation and synthetic CI with placeholders; do not start live collection during this delivery.

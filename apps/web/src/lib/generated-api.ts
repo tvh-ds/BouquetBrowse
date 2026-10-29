@@ -107,6 +107,91 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/admin/conversations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Captures */
+    get: operations["captures_v1_admin_conversations_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/conversations/exceptions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Exceptions */
+    get: operations["exceptions_v1_admin_conversations_exceptions_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/conversations/offers/{offer_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Detail */
+    get: operations["detail_v1_admin_conversations_offers__offer_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/conversations/offers/{offer_id}/interpretation": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Decide */
+    post: operations["decide_v1_admin_conversations_offers__offer_id__interpretation_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/conversations/{capture_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Capture Detail */
+    get: operations["capture_detail_v1_admin_conversations__capture_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/health/live": {
     parameters: {
       query?: never;
@@ -740,6 +825,12 @@ export interface components {
       /** Product Key */
       product_key?: string | null;
     };
+    /** InterpretationDecision */
+    InterpretationDecision: {
+      /** Expected Fingerprint */
+      expected_fingerprint: string;
+      interpretation: components["schemas"]["OfferInterpretation"];
+    };
     /** ListingView */
     ListingView: {
       /** Id */
@@ -797,6 +888,45 @@ export interface components {
       /** Password */
       password: string;
     };
+    /** OfferField */
+    OfferField: {
+      /**
+       * Field
+       * @enum {string}
+       */
+      field:
+        | "arrangement"
+        | "color"
+        | "stem_count"
+        | "lead_days"
+        | "delivery"
+        | "flower"
+        | "location"
+        | "ownership";
+      /** Value */
+      value: string | number | boolean;
+      /** Evidence */
+      evidence: components["schemas"]["QuoteReference"][];
+      /**
+       * Derivation
+       * @default direct
+       * @enum {string}
+       */
+      derivation: "direct" | "seller_confirmation";
+    };
+    /** OfferInterpretation */
+    OfferInterpretation: {
+      /** Seller Offer */
+      seller_offer: boolean;
+      ownership: components["schemas"]["QuoteReference"] | null;
+      location: components["schemas"]["QuoteReference"] | null;
+      /** Multi Product */
+      multi_product: boolean;
+      /** Fields */
+      fields?: components["schemas"]["OfferField"][];
+      /** Warnings */
+      warnings?: string[];
+    };
     /** PriceView */
     PriceView: {
       /** Id */
@@ -841,6 +971,17 @@ export interface components {
     PublicPageRequest: {
       /** Url */
       url: string;
+    };
+    /** QuoteReference */
+    QuoteReference: {
+      /** Version Id */
+      version_id: string;
+      /** Quote */
+      quote: string;
+      /** Before */
+      before?: string | null;
+      /** After */
+      after?: string | null;
     };
     /** ReviewDecision */
     ReviewDecision: {
@@ -1227,6 +1368,145 @@ export interface operations {
         };
         content: {
           "application/json": unknown;
+        };
+      };
+    };
+  };
+  captures_v1_admin_conversations_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  exceptions_v1_admin_conversations_exceptions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  detail_v1_admin_conversations_offers__offer_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        offer_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  decide_v1_admin_conversations_offers__offer_id__interpretation_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "idempotency-key"?: string | null;
+      };
+      path: {
+        offer_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InterpretationDecision"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  capture_detail_v1_admin_conversations__capture_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        capture_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

@@ -221,6 +221,175 @@
         }
       }
     },
+    "/v1/admin/conversations": {
+      "get": {
+        "summary": "Captures",
+        "operationId": "captures_v1_admin_conversations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/conversations/exceptions": {
+      "get": {
+        "summary": "Exceptions",
+        "operationId": "exceptions_v1_admin_conversations_exceptions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/conversations/offers/{offer_id}": {
+      "get": {
+        "summary": "Detail",
+        "operationId": "detail_v1_admin_conversations_offers__offer_id__get",
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Offer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/conversations/offers/{offer_id}/interpretation": {
+      "post": {
+        "summary": "Decide",
+        "operationId": "decide_v1_admin_conversations_offers__offer_id__interpretation_post",
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Offer Id"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterpretationDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/conversations/{capture_id}": {
+      "get": {
+        "summary": "Capture Detail",
+        "operationId": "capture_detail_v1_admin_conversations__capture_id__get",
+        "parameters": [
+          {
+            "name": "capture_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Capture Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "summary": "Health Live",
@@ -1889,6 +2058,24 @@
         ],
         "title": "ImportPost"
       },
+      "InterpretationDecision": {
+        "properties": {
+          "expected_fingerprint": {
+            "type": "string",
+            "title": "Expected Fingerprint"
+          },
+          "interpretation": {
+            "$ref": "#/components/schemas/OfferInterpretation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_fingerprint",
+          "interpretation"
+        ],
+        "title": "InterpretationDecision"
+      },
       "ListingView": {
         "properties": {
           "id": {
@@ -2137,6 +2324,121 @@
         ],
         "title": "LoginBody"
       },
+      "OfferField": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "arrangement",
+              "color",
+              "stem_count",
+              "lead_days",
+              "delivery",
+              "flower",
+              "location",
+              "ownership"
+            ],
+            "title": "Field"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ],
+            "title": "Value"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteReference"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Evidence"
+          },
+          "derivation": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "seller_confirmation"
+            ],
+            "title": "Derivation",
+            "default": "direct"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "field",
+          "value",
+          "evidence"
+        ],
+        "title": "OfferField"
+      },
+      "OfferInterpretation": {
+        "properties": {
+          "seller_offer": {
+            "type": "boolean",
+            "title": "Seller Offer"
+          },
+          "ownership": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuoteReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuoteReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "multi_product": {
+            "type": "boolean",
+            "title": "Multi Product"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/OfferField"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Fields"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "seller_offer",
+          "ownership",
+          "location",
+          "multi_product"
+        ],
+        "title": "OfferInterpretation"
+      },
       "PriceView": {
         "properties": {
           "id": {
@@ -2259,6 +2561,51 @@
           "url"
         ],
         "title": "PublicPageRequest"
+      },
+      "QuoteReference": {
+        "properties": {
+          "version_id": {
+            "type": "string",
+            "title": "Version Id"
+          },
+          "quote": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Quote"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version_id",
+          "quote"
+        ],
+        "title": "QuoteReference"
       },
       "ReviewDecision": {
         "properties": {
