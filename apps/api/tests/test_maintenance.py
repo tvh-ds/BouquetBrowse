@@ -117,7 +117,10 @@ def test_failed_backup_never_publishes_manifest_and_retention_refuses_extra_file
         backups.prune_backups(settings.backup_directory, utcnow() + timedelta(days=8))
     assert extra.is_file() and (snapshot / "database.dump").is_file()
     extra.unlink()
-    assert backups.prune_backups(settings.backup_directory, utcnow() + timedelta(days=8)) == 1
+    # An already-validated incomplete snapshot may have been removed before the
+    # protected folder was visited; directory iteration order differs by platform.
+    remaining = len(list(settings.backup_directory.glob("snapshot-*")))
+    assert backups.prune_backups(settings.backup_directory, utcnow() + timedelta(days=8)) == remaining
     assert not snapshot.exists()
     assert (settings.backup_directory / "current-deletions" / "deletions-current.jsonl").exists()
 
