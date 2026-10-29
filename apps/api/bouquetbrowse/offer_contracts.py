@@ -9,8 +9,11 @@ from .schemas import StrictModel
 
 
 class OfferField(StrictModel):
-    field: Literal["arrangement", "color", "stem_count", "lead_days", "delivery", "flower", "location", "ownership"]
+    field: Literal[
+        "arrangement", "color", "stem_count", "flower_count", "lead_days", "delivery", "flower", "location", "ownership"
+    ]
     value: str | int | bool
+    flower: str | None = Field(default=None, max_length=80)
     evidence: list[QuoteReference] = Field(min_length=1, max_length=4)
     derivation: Literal["direct", "seller_confirmation"] = "direct"
 

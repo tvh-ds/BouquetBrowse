@@ -66,7 +66,7 @@ def interpret_offer(bundle, configuration):
 
 
 class OfferServices:
-    def __init__(self, execution_id, lease, recognizer=interpret_offer):
+    def __init__(self, execution_id, lease, recognizer=None):
         self.execution_id, self.lease, self.recognizer = execution_id, lease, recognizer
 
     def checked(self, db):
@@ -115,13 +115,23 @@ class OfferServices:
             elif name == "recognize":
                 if analysis.output:
                     db.commit()
-                    return {"needs_recheck": False}
+                    return {
+                        "needs_recheck": analysis.output.get("needs_recheck", False)
+                        and not analysis.output.get("recheck_completed", False)
+                    }
                 configuration = dict(execution.configuration)
                 scope = CallScope(execution.id, execution.budget_microusd, execution.id, self.lease)
                 db.commit()
                 # The interpretation call and all other external work happen after closing the read transaction.
                 with call_scope(scope):
-                    result = self.recognizer(bundle, configuration)
+                    if self.recognizer:
+                        result = self.recognizer(bundle, configuration)
+                        visual = None
+                    else:
+                        from .recognition import analyze_offer
+
+                        visual = analyze_offer(bundle, configuration)
+                        result = visual["interpretation"]
                 with database.SessionLocal() as write:
                     _, current_offer, current_analysis, _ = self.checked(write)
                     try:
@@ -134,7 +144,57 @@ class OfferServices:
                             "warnings": [],
                             "composition": [],
                         }
+                    if visual:
+                        from .recognition import merge_components, proposed_regions
+
+                        output = current_analysis.output
+                        regions = proposed_regions(write, current_analysis, visual["results"], visual["views"])
+                        composition = merge_components(
+                            write, output["composition"], visual["results"], configuration, visual["views"]
+                        )
+                        if any(r.multi_product for r in visual["results"]):
+                            output["errors"] = sorted(set([*output["errors"], "multi_product_review"]))
+                        current_analysis.output = {
+                            **output,
+                            "composition": composition,
+                            "recognition_completed": True,
+                            "regions": regions,
+                            "needs_recheck": visual["needs_recheck"],
+                            "auxiliary_cv": visual["auxiliary"],
+                            "unprocessed_media": visual["unprocessed_media"],
+                            "visual_arrangement": visual["results"][0].arrangement,
+                            "visual_colors": sorted({color for r in visual["results"] for color in r.colors}),
+                        }
                     current_analysis.state = "interpreted"
+                    write.commit()
+                return {"needs_recheck": bool(visual and visual["needs_recheck"])}
+            elif name == "recheck":
+                if analysis.output.get("recheck_completed"):
+                    db.commit()
+                    return {"needs_recheck": False}
+                configuration, region_ids = dict(execution.configuration), analysis.output.get("regions", [])
+                scope = CallScope(execution.id, execution.budget_microusd, execution.id, self.lease)
+                db.commit()
+                from .recognition import merge_components, recheck_offer
+
+                with call_scope(scope):
+                    result, views = recheck_offer(bundle, configuration, region_ids)
+                with database.SessionLocal() as write:
+                    _, _, current_analysis, _ = self.checked(write)
+                    output = current_analysis.output
+                    components = merge_components(
+                        write, output["composition"], [result] if result else [], configuration, views
+                    )
+                    current_analysis.output = {
+                        **output,
+                        "composition": components,
+                        "recheck_completed": True,
+                        "needs_recheck": False,
+                        "recheck_region_count": len(views),
+                        "recheck_unprocessed_regions": [
+                            r for r in region_ids if r not in {v["view_id"] for v in views}
+                        ],
+                    }
                     write.commit()
                 return {"needs_recheck": False}
             elif name == "validate":
@@ -166,7 +226,7 @@ class OfferServices:
             elif name == "commit":
                 commit_offer(db, offer, execution, analysis.output)
                 execution.state = "completed"
-            elif name not in {"resolve", "recheck"}:
+            elif name != "resolve":
                 raise CapabilityError("Unknown offer graph stage.", "unsupported_graph_stage")
             db.commit()
             return {"offer_id": offer.id, "fingerprint": analysis.fingerprint}

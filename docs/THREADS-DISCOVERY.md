@@ -41,7 +41,7 @@ Digests project durable catalog-change events into Hanoi-day snapshots after the
 | 11 Durable runtime | Implemented with synthetic tests: fenced leases, durable model receipts, compact LangGraph workflows and private PostgreSQL checkpointer setup; no live browser/offer graph services enabled yet |
 | 12 Threads browser discovery | Implemented with synthetic Chromium tests: bounded controller, visible-UI adapters, durable frontier/captures, dedicated login, authenticated admin APIs. Collector access/coverage with the dedicated profile remains unvalidated |
 | 13 Conversation offers | Implemented with synthetic conversations: independent offer graphs, seller/ancestor price binding, exact quote validation, confirmation derivations, private exceptions and atomic revision receipts. Publication remains gated; no live quality claim |
-| 14 Mixed-flower recognition | Planned |
+| 14 Mixed-flower recognition | Implemented with synthetic/fake-provider tests: joint multi-view recognition, per-type composition/counts, targeted crops and one stronger recheck, auxiliary SigLIP scoring, dependency caches and offline benchmark tooling. Real 100-image results wait for the user's live-test command; visual categories remain tentative |
 | 15 Catalog, profiles, digests | Planned |
 | 16 Real pilot validation | Planned; no measured quality claims |
 | 17 Local recurring operation | Planned; recurring publication disabled until gates pass |

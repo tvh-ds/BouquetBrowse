@@ -1,4 +1,5 @@
 import io
+import re
 from functools import lru_cache
 
 from PIL import Image
@@ -10,9 +11,10 @@ MODEL = "google/siglip2-base-patch16-224"
 
 
 @lru_cache(maxsize=1)
-def load_encoder():
+def load_encoder(revision=None):
     s = get_settings()
-    if not s.siglip_revision or s.image_embedding_provider != "siglip":
+    revision = revision or s.siglip_revision
+    if not re.fullmatch(r"[0-9a-f]{40}", revision) or s.image_embedding_provider != "siglip":
         raise CapabilityError(
             "Enable siglip, install the vision extra and pin SIGLIP_REVISION before image inference.",
             "vision_not_configured",
@@ -25,10 +27,8 @@ def load_encoder():
             "Install the optional vision dependencies in the worker.", "vision_dependencies_missing"
         ) from exc
     torch.set_num_threads(1)
-    model = AutoModel.from_pretrained(
-        MODEL, revision=s.siglip_revision, trust_remote_code=False, use_safetensors=True
-    ).eval()
-    processor = AutoProcessor.from_pretrained(MODEL, revision=s.siglip_revision, trust_remote_code=False)
+    model = AutoModel.from_pretrained(MODEL, revision=revision, trust_remote_code=False, use_safetensors=True).eval()
+    processor = AutoProcessor.from_pretrained(MODEL, revision=revision, trust_remote_code=False)
     return model, processor
 
 
@@ -47,3 +47,23 @@ def image_embedding(content):
     if len(vector) != 768:
         raise CapabilityError("The pinned vision model has an unexpected dimension.", "vision_contract_error")
     return vector, f"{MODEL}@{get_settings().siglip_revision}"
+
+
+def label_scores(content, labels, revision=None):
+    """Auxiliary, uncalibrated multi-label scores; no threshold establishes flower facts."""
+    if len(labels) > 40 or not labels:
+        raise ValueError("Use a bounded curated label set")
+    model, processor = load_encoder(revision)
+    import torch
+
+    with Image.open(io.BytesIO(content), formats=["JPEG", "PNG", "WEBP"]) as source:
+        inputs = processor(
+            text=[f"A photograph of {label} flowers in a bouquet." for label in labels],
+            images=source.convert("RGB"),
+            padding="max_length",
+            max_length=64,
+            return_tensors="pt",
+        )
+    with torch.inference_mode():
+        scores = model(**inputs).logits_per_image.sigmoid()[0].cpu().tolist()
+    return dict(zip(labels, scores, strict=True))

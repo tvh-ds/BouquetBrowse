@@ -13,6 +13,18 @@ from .runtime_models import GraphExecution
 
 
 def create_execution(db, kind, command_key, configuration, input_fingerprint, offer_id=None):
+    from .config import get_settings
+
+    configuration = dict(configuration)
+    if kind in {"offer", "evaluation"}:
+        settings = get_settings()
+        for key, value in {
+            "recognition_version": "mixed-flowers-v1",
+            "preprocessing_version": "jpeg-1200-v1",
+            "image_embedding_provider": settings.image_embedding_provider,
+            "siglip_revision": settings.siglip_revision,
+        }.items():
+            configuration.setdefault(key, value)
     if kind not in {"discovery", "offer", "evaluation"}:
         raise ValueError("Unknown graph execution kind")
     if not command_key or len(command_key) > 160:
@@ -29,6 +41,10 @@ def create_execution(db, kind, command_key, configuration, input_fingerprint, of
         "slot",
         "manual",
         "source_capture_id",
+        "recognition_version",
+        "preprocessing_version",
+        "image_embedding_provider",
+        "siglip_revision",
     }
     if set(configuration) - allowed:
         raise ValueError("Execution configuration cannot contain credentials or arbitrary source data")

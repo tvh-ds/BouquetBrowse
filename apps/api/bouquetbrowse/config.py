@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     instagram_discovery_approved: bool = False
     extraction_provider: str = "rules"
     image_embedding_provider: str = "disabled"
-    siglip_revision: str = ""
+    siglip_revision: str = "75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2"
     media_dir: Path = ROOT / ".data" / "media"
     public_origin: str = "http://localhost:3000"
     discovery_enabled: bool = False

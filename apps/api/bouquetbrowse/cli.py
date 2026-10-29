@@ -10,12 +10,35 @@ from .seed import seed_demo
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["demo", "member", "openapi", "discovery-init", "browser-login"])
+    parser.add_argument(
+        "command", choices=["demo", "member", "openapi", "discovery-init", "browser-login", "evaluate-images"]
+    )
     parser.add_argument("--user-id")
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--input", type=Path)
+    parser.add_argument("--configuration-hash")
+    parser.add_argument("--dataset-kind", choices=["synthetic", "permitted_real"], default="synthetic")
     parser.add_argument("--role", choices=["tester", "reviewer", "admin"], default="tester")
     args = parser.parse_args()
-    if args.command == "browser-login":
+    if args.command == "evaluate-images":
+        from .config import ROOT
+        from .recognition_evaluation import evaluate_images
+
+        if not args.input or not args.output or not args.configuration_hash:
+            parser.error("--input, --output and --configuration-hash are required")
+        output = args.output.resolve()
+        if output.is_relative_to(ROOT) and not output.is_relative_to(ROOT / ".data"):
+            parser.error("Keep evaluation exports under ignored .data or outside the public repository")
+        if args.input.stat().st_size > 10 * 1024 * 1024:
+            parser.error("Evaluation input exceeds 10 MB")
+        rows = [json.loads(line) for line in args.input.read_text(encoding="utf-8").splitlines() if line.strip()]
+        report = evaluate_images(rows, args.configuration_hash, args.dataset_kind)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(
+            f"Evaluated {report['images']} images; dataset gate: {report['dataset_ready']}. No models called or publication enabled."
+        )
+    elif args.command == "browser-login":
         from .browser import open_browser
 
         print("Sign in directly in the dedicated browser. No cookies are copied; close the window to cancel.")
