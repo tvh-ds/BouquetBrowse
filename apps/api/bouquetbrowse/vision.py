@@ -32,8 +32,9 @@ def load_encoder(revision=None):
     return model, processor
 
 
-def image_embedding(content):
-    model, processor = load_encoder()
+def image_embedding(content, revision=None):
+    revision = revision or get_settings().siglip_revision
+    model, processor = load_encoder(revision)
     import torch
 
     with Image.open(io.BytesIO(content)) as source:
@@ -46,7 +47,7 @@ def image_embedding(content):
     vector = features[0].cpu().tolist()
     if len(vector) != 768:
         raise CapabilityError("The pinned vision model has an unexpected dimension.", "vision_contract_error")
-    return vector, f"{MODEL}@{get_settings().siglip_revision}"
+    return vector, f"{MODEL}@{revision}"
 
 
 def label_scores(content, labels, revision=None):

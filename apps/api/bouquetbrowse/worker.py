@@ -132,6 +132,17 @@ def purge_listing(db, listing_id, extended=True):
 
 def handle_job(db, job, prepared=None):
     p = job.payload
+    if job.kind == "delete-evaluation-exports":
+        from .research_models import EvaluationDataset
+
+        dataset = db.get(EvaluationDataset, p["dataset_id"])
+        if dataset and aware(dataset.retention_until) <= utcnow():
+            dataset.export_keys = []
+        return prepared
+    if job.kind == "embed-crop":
+        from .crop_vectors import commit
+
+        return commit(db, p, prepared)
     if job.kind == "extract":
         return process_extraction(db, p["version_id"], p.get("pipeline_version", "hybrid-v1"), prepared=prepared)
     if job.kind == "purge":
@@ -148,7 +159,12 @@ def handle_job(db, job, prepared=None):
             setattr(asset, name, value)
         asset.storage_key, asset.state = key, "ready"
         if get_settings().image_embedding_provider == "siglip":
-            enqueue(db, "embed-image", {"media_id": asset.id}, f"image:{asset.id}:{get_settings().siglip_revision}")
+            enqueue(
+                db,
+                "embed-image",
+                {"media_id": asset.id, "checksum": asset.checksum, "model_revision": get_settings().siglip_revision},
+                f"image:{asset.id}:{asset.checksum}:{get_settings().siglip_revision}",
+            )
         # Publish an image only after source association; private delivery remains authenticated.
         for listing in db.scalars(
             select(Listing)
@@ -163,7 +179,14 @@ def handle_job(db, job, prepared=None):
         asset = db.get(MediaAsset, p["media_id"])
         if not asset or asset.state != "ready" or not asset.storage_key:
             return {"skipped": True}
+        if p.get("checksum") and asset.checksum != p["checksum"]:
+            raise CapabilityError("Image changed during feature extraction.", "stale_image")
         vector, model = prepared
+        if p.get("model_revision"):
+            from .vision import MODEL
+
+            if model != f"{MODEL}@{p['model_revision']}":
+                raise ValueError("Image feature model differs from its pinned job")
         if not db.scalar(
             select(ImageEmbedding.id).where(ImageEmbedding.media_id == asset.id, ImageEmbedding.model_version == model)
         ):
@@ -280,6 +303,14 @@ def prepare_external(job, lease):
     from .leases import guard
 
     p = job.payload
+    if job.kind == "delete-evaluation-exports":
+        from .evaluation import delete_exports
+
+        return delete_exports(p["dataset_id"], SessionLocal)
+    if job.kind == "embed-crop":
+        from .crop_vectors import prepare
+
+        return prepare(SessionLocal, p)
     if job.kind == "discovery-graph":
         from .discovery import run_discovery
 
@@ -288,6 +319,10 @@ def prepare_external(job, lease):
         from .offer_runtime import run_offer
 
         return run_offer(p["execution_id"], lease)
+    if job.kind == "evaluation-graph":
+        from .evaluation import run_evaluation
+
+        return run_evaluation(p["execution_id"], lease)
     if job.kind == "sync":
         return discover(p["source"], p.get("query", "bó hoa Hà Nội"), p.get("username"))
     if job.kind == "delete-media":
@@ -360,7 +395,7 @@ def prepare_external(job, lease):
         from .storage import get_media_bytes
         from .vision import image_embedding
 
-        return image_embedding(get_media_bytes(key))
+        return image_embedding(get_media_bytes(key), p.get("model_revision"))
     if job.kind == "embed-text":
         with SessionLocal() as db:
             listing = db.get(Listing, p["listing_id"])
@@ -400,7 +435,7 @@ def run_once(kinds=None, exclude_kinds=None):
                 current = guard(db, lease)
                 current.result = (
                     prepared
-                    if current.kind in {"delete-media", "discovery-graph", "offer-graph"}
+                    if current.kind in {"delete-media", "discovery-graph", "offer-graph", "evaluation-graph"}
                     else handle_job(db, current, prepared)
                 )
                 current.state, current.lease_until, current.lease_token, current.last_error = (
@@ -439,6 +474,19 @@ def run_once(kinds=None, exclude_kinds=None):
                 else:
                     current.state = "failed"
                 current.lease_until, current.lease_token = None, None
+                if current.kind in {"evaluation-graph", "offer-graph"}:
+                    from .runtime_models import GraphExecution
+
+                    execution = db.get(GraphExecution, current.payload.get("execution_id"))
+                    if execution and execution.state not in {"completed", "withdrawn", "superseded", "cancelled"}:
+                        execution.state = current.state
+                        execution.stop_reason = exc.code if isinstance(exc, CapabilityError) else "processing_failed"
+                        if current.kind == "evaluation-graph":
+                            from .research_models import EvaluationItem
+
+                            item = db.get(EvaluationItem, execution.progress.get("evaluation_item_id"))
+                            if item:
+                                item.state = current.state
                 db.commit()
         except CapabilityError:
             pass  # A replacement or cancellation owns the result now.

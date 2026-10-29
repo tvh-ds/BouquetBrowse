@@ -95,12 +95,8 @@ def prepare_views(bundle):
     return views
 
 
-def recognize_call(bundle, views, configuration, purpose="joint", stronger=False):
+def request_identity(bundle, views, configuration, purpose="joint", stronger=False):
     settings = get_settings()
-    if not settings.openai_api_key:
-        raise CapabilityError("Configure OPENAI_API_KEY for bouquet recognition.", "model_not_configured")
-    if not views or len(views) > 4 or purpose not in {"joint", "image_only", "regional_recheck"}:
-        raise ValueError("Recognition requires one to four bounded image views")
     model = configuration.get(
         "escalation_model" if stronger else "extraction_model",
         settings.escalation_model if stronger else settings.extraction_model,
@@ -122,6 +118,16 @@ def recognize_call(bundle, views, configuration, purpose="joint", stronger=False
         "configuration": configuration_hash(configuration),
         "model": model,
     }
+    return context, model, dependencies
+
+
+def recognize_call(bundle, views, configuration, purpose="joint", stronger=False):
+    settings = get_settings()
+    if not settings.openai_api_key:
+        raise CapabilityError("Configure OPENAI_API_KEY for bouquet recognition.", "model_not_configured")
+    if not views or len(views) > 4 or purpose not in {"joint", "image_only", "regional_recheck"}:
+        raise ValueError("Recognition requires one to four bounded image views")
+    context, model, dependencies = request_identity(bundle, views, configuration, purpose, stronger)
     key = digest(dependencies)
     with database.SessionLocal() as db:
         from .taxonomy import vocabulary

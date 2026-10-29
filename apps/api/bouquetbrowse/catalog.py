@@ -461,6 +461,35 @@ def selected_image_vectors(db, candidates):
                 # Whole-post/carousel vectors cannot stand in for a selected product crop.
                 continue
         images.setdefault(listing_id, []).append(embedding)
+    from .conversation_models import OfferAssociation, OfferOccurrence
+    from .models import MediaAsset
+    from .pipeline import digest
+    from .research_models import CropEmbedding
+
+    for embedding, association, offer, asset in db.execute(
+        select(CropEmbedding, OfferAssociation, OfferOccurrence, MediaAsset)
+        .join(OfferAssociation, OfferAssociation.id == CropEmbedding.association_id)
+        .join(OfferOccurrence, OfferOccurrence.id == OfferAssociation.offer_id)
+        .join(MediaAsset, MediaAsset.id == CropEmbedding.media_id)
+        .where(CropEmbedding.retention_until > utcnow(), MediaAsset.state == "ready")
+    ).all():
+        listing = selected.get(offer.listing_id)
+        revision = (
+            db.get(ListingRevision, listing.current_revision_id) if listing and listing.current_revision_id else None
+        )
+        bounds = revision.snapshot.get("media_regions", {}).get(asset.id) if revision else None
+        if (
+            bounds
+            and embedding.region_hash == digest(bounds)
+            and embedding.checksum == asset.checksum
+            and association.state == "accepted"
+            and association.basis == "reviewed_region"
+            and association.region
+            and digest(association.region) == embedding.region_hash
+            and asset.retention_until
+            and aware(asset.retention_until) > utcnow()
+        ):
+            images.setdefault(listing.id, []).append(embedding)
     return images
 
 

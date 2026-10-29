@@ -146,10 +146,14 @@ def evaluate_conversations(db, values, configuration, dataset_kind):
     }, {"versions": sorted(dependencies)}
 
 
-def evidence_current(db, dependencies):
+def evidence_current(db, dependencies, depth=0):
+    if depth > 3:
+        return False
     for record_id in dependencies.get("recognition_records", []):
         record = db.get(RecognitionRecord, record_id)
         if not record or not record.result or aware(record.retention_until) <= utcnow():
+            return False
+        if not evidence_current(db, {"recognition_records": record.dependencies.get("derived_from", [])}, depth + 1):
             return False
     for version_id in dependencies.get("versions", []):
         version = db.get(PostVersion, version_id)
@@ -204,13 +208,16 @@ def stage_proof(db, kind, values, configuration, dataset_kind="synthetic"):
                         for v in record.dependencies.get("views", [])
                         if v["media_id"] == asset.id and v["checksum"] == asset.checksum
                     }
+                    from .taxonomy import normalize
+
                     actual = {
-                        f["flower"]
+                        normalize(db, f["flower"], configuration["taxonomy_version"])
                         for f in record.result.get("flowers", [])
                         if f.get("state") == "present"
                         and not f.get("alternatives")
                         and set(f.get("view_ids", [])) & view_ids
                     }
+                    actual.discard(None)
                     if not view_ids or actual != set(predictions):
                         raise ValueError("Image predictions do not match the stored image-specific recognition receipt")
                     record_ids.append(record.id)

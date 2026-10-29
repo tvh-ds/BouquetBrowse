@@ -1,5 +1,6 @@
 """Durable paid-call receipts. A timeout is not permission to bill again."""
 
+import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -182,8 +183,10 @@ def invoke_once(model, request, invoke, reservation_usd=0.10):
             db.commit()
     if blocked:
         raise CapabilityError("An uncertain paid call requires explicit replay in admin.", "call_replay_required")
+    started = time.monotonic()
     try:
         result, usage, actual_usd = invoke()
+        usage = {**usage, "latency_ms": round((time.monotonic() - started) * 1000)}
     except Exception as exc:
         with database.SessionLocal() as db:
             call = db.get(ModelCall, call_id)

@@ -108,6 +108,40 @@ def detail(offer_id: str, db: Database):
     }
 
 
+@router.get("/offers/{offer_id}/media/{media_id}")
+def private_offer_image(offer_id: str, media_id: str, db: Database):
+    from fastapi.responses import Response
+
+    from .recognition import prepare_views
+
+    offer = db.get(OfferOccurrence, offer_id)
+    if not offer or offer.state in {"withdrawn", "expired", "rejected"}:
+        raise HTTPException(404, detail="Offer image unavailable")
+    bundle = evidence_bundle(db, offer)
+    bundle["media"] = [m for m in bundle["media"] if m["media_id"] == media_id]
+    if len(bundle["media"]) != 1:
+        raise HTTPException(404, detail="Image is not uniquely associated with this offer")
+    db.commit()
+    views = prepare_views(bundle)
+    db.expire_all()
+    current = db.get(OfferOccurrence, offer_id)
+    from .db import aware
+    from .models import MediaAsset
+
+    asset = db.get(MediaAsset, media_id)
+    if (
+        not current
+        or current.state in {"withdrawn", "expired", "rejected"}
+        or not asset
+        or asset.state != "ready"
+        or asset.retention_until
+        and aware(asset.retention_until) <= utcnow()
+    ):
+        raise HTTPException(404, detail="Offer image was removed")
+    evidence_bundle(db, current)
+    return Response(views[0]["bytes"], media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
 @router.post("/offers/{offer_id}/interpretation")
 def decide(
     offer_id: str,

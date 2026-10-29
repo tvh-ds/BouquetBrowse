@@ -8,7 +8,7 @@ from langgraph.types import interrupt
 
 from .providers import CapabilityError
 
-BEHAVIOR_VERSION = "threads-graphs-v8"
+BEHAVIOR_VERSION = "threads-graphs-v9"
 
 
 class GraphState(TypedDict, total=False):
@@ -84,6 +84,17 @@ def offer_graph(services: GraphServices, checkpointer):
     builder.add_conditional_edges("route", lambda s: "await_review" if s.get("waiting_review") else "commit")
     builder.add_edge("await_review", "validate")
     builder.add_edge("commit", END)
+    return builder.compile(checkpointer=checkpointer)
+
+
+def evaluation_graph(services: GraphServices, checkpointer):
+    builder = StateGraph(GraphState)
+    for name in ["joint", "image_only", "finish"]:
+        builder.add_node(name, node(services, name))
+    builder.add_edge(START, "joint")
+    builder.add_edge("joint", "image_only")
+    builder.add_edge("image_only", "finish")
+    builder.add_edge("finish", END)
     return builder.compile(checkpointer=checkpointer)
 
 

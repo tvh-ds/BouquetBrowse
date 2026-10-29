@@ -362,6 +362,52 @@
         }
       }
     },
+    "/v1/admin/conversations/offers/{offer_id}/media/{media_id}": {
+      "get": {
+        "summary": "Private Offer Image",
+        "operationId": "private_offer_image_v1_admin_conversations_offers__offer_id__media__media_id__get",
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Offer Id"
+            }
+          },
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Media Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/admin/conversations/offers/{offer_id}/interpretation": {
       "post": {
         "summary": "Decide",
@@ -1068,6 +1114,340 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UnlinkDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/evaluations/conversation-references": {
+      "post": {
+        "summary": "Reference Signatures",
+        "operationId": "reference_signatures_v1_admin_evaluations_conversation_references_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferenceBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/evaluations": {
+      "get": {
+        "summary": "Datasets",
+        "operationId": "datasets_v1_admin_evaluations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Dataset",
+        "operationId": "create_dataset_v1_admin_evaluations_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/evaluations/{dataset_id}": {
+      "get": {
+        "summary": "Detail",
+        "operationId": "detail_v1_admin_evaluations__dataset_id__get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/evaluations/{dataset_id}/items/{item_id}/annotation": {
+      "post": {
+        "summary": "Annotate",
+        "operationId": "annotate_v1_admin_evaluations__dataset_id__items__item_id__annotation_post",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/evaluations/{dataset_id}/run": {
+      "post": {
+        "summary": "Run",
+        "operationId": "run_v1_admin_evaluations__dataset_id__run_post",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetVersion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/evaluations/{dataset_id}/export": {
+      "get": {
+        "summary": "Export",
+        "operationId": "export_v1_admin_evaluations__dataset_id__export_get",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/evaluations/{dataset_id}/stage": {
+      "post": {
+        "summary": "Stage",
+        "operationId": "stage_v1_admin_evaluations__dataset_id__stage_post",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetVersion"
               }
             }
           }
@@ -2152,6 +2532,70 @@
   },
   "components": {
     "schemas": {
+      "AnnotationBody": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "labels": {
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Labels"
+          },
+          "assessable": {
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "type": "array",
+            "maxItems": 40,
+            "minItems": 1,
+            "title": "Assessable"
+          },
+          "reviewers": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Reviewers"
+          },
+          "split": {
+            "type": "string",
+            "enum": [
+              "development",
+              "holdout"
+            ],
+            "title": "Split"
+          },
+          "image_family": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Image Family"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "labels",
+          "assessable",
+          "reviewers",
+          "split",
+          "image_family"
+        ],
+        "title": "AnnotationBody"
+      },
       "ApprovalBody": {
         "properties": {
           "expected_report_hash": {
@@ -2526,6 +2970,56 @@
           "visual_state"
         ],
         "title": "CompositionView"
+      },
+      "DatasetBody": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "dataset_kind": {
+            "type": "string",
+            "enum": [
+              "synthetic",
+              "permitted_real"
+            ],
+            "title": "Dataset Kind",
+            "default": "synthetic"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationSelection"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "items"
+        ],
+        "title": "DatasetBody"
+      },
+      "DatasetVersion": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version"
+        ],
+        "title": "DatasetVersion"
       },
       "DetailView": {
         "properties": {
@@ -2907,6 +3401,41 @@
           "note"
         ],
         "title": "DigestView"
+      },
+      "EvaluationSelection": {
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "title": "Offer Id"
+          },
+          "media_id": {
+            "type": "string",
+            "title": "Media Id"
+          },
+          "split": {
+            "type": "string",
+            "enum": [
+              "development",
+              "holdout"
+            ],
+            "title": "Split"
+          },
+          "image_family": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Image Family"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "offer_id",
+          "media_id",
+          "split",
+          "image_family"
+        ],
+        "title": "EvaluationSelection"
       },
       "ExcludedView": {
         "properties": {
@@ -3779,6 +4308,142 @@
           "quote"
         ],
         "title": "QuoteReference"
+      },
+      "ReferenceBatch": {
+        "properties": {
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceConversation"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "minItems": 1,
+            "title": "Values"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "values"
+        ],
+        "title": "ReferenceBatch"
+      },
+      "ReferenceCommercial": {
+        "properties": {
+          "prices": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Prices"
+          },
+          "claims": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Claims"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prices",
+          "claims"
+        ],
+        "title": "ReferenceCommercial"
+      },
+      "ReferenceConversation": {
+        "properties": {
+          "capture_id": {
+            "type": "string",
+            "title": "Capture Id"
+          },
+          "pattern": {
+            "type": "string",
+            "enum": [
+              "seller_root",
+              "buyer_request"
+            ],
+            "title": "Pattern"
+          },
+          "features": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "mixed",
+                "multiple_sellers",
+                "missing_price",
+                "conflict",
+                "partial"
+              ]
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "reviewers": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 5,
+            "minItems": 2,
+            "title": "Reviewers"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceOffer"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Offers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "capture_id",
+          "pattern",
+          "features",
+          "reviewers",
+          "offers"
+        ],
+        "title": "ReferenceConversation"
+      },
+      "ReferenceOffer": {
+        "properties": {
+          "offer_id": {
+            "type": "string",
+            "title": "Offer Id"
+          },
+          "seller_account_id": {
+            "type": "string",
+            "title": "Seller Account Id"
+          },
+          "abstain": {
+            "type": "boolean",
+            "title": "Abstain"
+          },
+          "commercial_reference": {
+            "$ref": "#/components/schemas/ReferenceCommercial"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "offer_id",
+          "seller_account_id",
+          "abstain",
+          "commercial_reference"
+        ],
+        "title": "ReferenceOffer"
       },
       "RegionDecision": {
         "properties": {

@@ -315,5 +315,6 @@ from . import (  # noqa: E402, F401
     operations_models,
     pilot_models,
     recognition_models,
+    research_models,
     runtime_models,
 )

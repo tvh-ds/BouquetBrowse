@@ -69,6 +69,7 @@ app = FastAPI(
 from .curation_api import router as curation_router  # noqa: E402
 from .digest_api import router as digest_router  # noqa: E402
 from .discovery_api import router as discovery_router  # noqa: E402
+from .evaluation_api import router as evaluation_router  # noqa: E402
 from .offer_api import router as offer_router  # noqa: E402
 from .operations_api import router as operations_router  # noqa: E402
 from .pilot_api import router as pilot_router  # noqa: E402
@@ -79,6 +80,7 @@ app.include_router(digest_router)
 app.include_router(pilot_router)
 app.include_router(operations_router)
 app.include_router(curation_router)
+app.include_router(evaluation_router)
 
 
 @app.middleware("http")

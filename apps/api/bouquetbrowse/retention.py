@@ -48,10 +48,16 @@ def ledger(db, kind, subject_id, reason):
 
 
 def remove_media(db, asset):
+    from .evaluation import expire_research
+    from .research_models import CropEmbedding
+
+    expire_research(db, media_ids=[asset.id])
+
     if asset.storage_key:
         enqueue(db, "delete-media", {"storage_key": asset.storage_key}, f"delete-media:{asset.id}:{asset.storage_key}")
     asset.storage_key, asset.source_url, asset.state = None, None, "removed"
     db.execute(delete(ImageEmbedding).where(ImageEmbedding.media_id == asset.id))
+    db.execute(delete(CropEmbedding).where(CropEmbedding.media_id == asset.id))
     for region in db.scalars(select(ImageRegion).where(ImageRegion.media_id == asset.id)):
         region.evidence, region.bounds, region.state = {}, [], "removed"
 
@@ -66,6 +72,9 @@ def scrub_versions(db, version_ids, reason="expired", listing_ids=None):
         db.scalars(select(ListingSource.listing_id).where(ListingSource.version_id.in_(versions)))
     )
     offers.update(db.scalars(select(OfferOccurrence.id).where(OfferOccurrence.listing_id.in_(listings))))
+    from .evaluation import expire_research
+
+    expire_research(db, offer_ids=offers)
     captures = set(db.scalars(select(CaptureMember.capture_id).where(CaptureMember.version_id.in_(versions))))
     executions = set(db.scalars(select(GraphExecution.id).where(GraphExecution.offer_id.in_(offers))))
     executions.update(
@@ -167,6 +176,12 @@ def scrub_versions(db, version_ids, reason="expired", listing_ids=None):
 
 def expire(db, now=None):
     now = now or utcnow()
+    from .research_models import CropEmbedding
+
+    db.execute(delete(CropEmbedding).where(CropEmbedding.retention_until <= now))
+    from .evaluation import expire_research
+
+    expire_research(db, now)
     expired_profiles = list(db.scalars(select(ProfileSnapshot).where(ProfileSnapshot.retention_until <= now)))
     for profile in expired_profiles:
         for fact in db.scalars(select(SellerFact)):

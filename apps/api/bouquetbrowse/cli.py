@@ -25,9 +25,14 @@ def main():
             "deletion-export",
             "deletion-replay",
             "backup-media",
+            "evaluation-export",
+            "evaluation-run",
+            "evaluation-status",
         ],
     )
     parser.add_argument("--user-id")
+    parser.add_argument("--dataset-id")
+    parser.add_argument("--expected-version", type=int)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--input", type=Path)
     parser.add_argument("--configuration-hash")
@@ -35,7 +40,50 @@ def main():
     parser.add_argument("--proof-kind", choices=["conversation", "recognition"])
     parser.add_argument("--role", choices=["tester", "reviewer", "admin"], default="tester")
     args = parser.parse_args()
-    if args.command == "operations-ready":
+    if args.command in {"evaluation-export", "evaluation-run", "evaluation-status"}:
+        from sqlalchemy import select
+
+        from .db import aware, utcnow
+        from .evaluation import export_dataset, queue_dataset
+        from .research_models import EvaluationDataset, EvaluationItem
+
+        if not args.dataset_id:
+            parser.error("--dataset-id is required")
+        with SessionLocal() as db:
+            dataset = db.get(EvaluationDataset, args.dataset_id)
+            if not dataset or aware(dataset.retention_until) <= utcnow():
+                parser.error("Evaluation is missing or expired")
+            if args.command == "evaluation-export":
+                path = export_dataset(db, dataset)
+                db.commit()
+                print(str(path))
+            elif args.command == "evaluation-run":
+                if args.expected_version != dataset.version:
+                    parser.error("Inspect the dataset and pass its --expected-version")
+                ids = queue_dataset(db, dataset)
+                db.commit()
+                print(json.dumps({"execution_ids": ids, "evaluation_only": True}))
+            else:
+                print(
+                    json.dumps(
+                        {
+                            "id": dataset.id,
+                            "version": dataset.version,
+                            "items": [
+                                {
+                                    "id": item.id,
+                                    "state": item.state,
+                                    "cost_microusd": item.cost_microusd,
+                                    "latency_ms": item.latency_ms,
+                                }
+                                for item in db.scalars(
+                                    select(EvaluationItem).where(EvaluationItem.dataset_id == dataset.id)
+                                )
+                            ],
+                        }
+                    )
+                )
+    elif args.command == "operations-ready":
         from .discovery import settings_row
         from .local_schedule import collection_ready
 
