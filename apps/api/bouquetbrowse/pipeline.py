@@ -5,7 +5,7 @@ from datetime import timedelta
 from sqlalchemy import select, text
 
 from .config import get_settings
-from .db import utcnow
+from .db import aware, utcnow
 from .extraction import extract_caption, extract_prices, fold, validate_grounding
 from .models import (
     AvailabilityObservation,
@@ -34,12 +34,19 @@ def digest(value):
 
 
 def enqueue(db, kind, payload, key):
-    existing = db.scalar(select(Job).where(Job.idempotency_key == key))
-    if existing:
-        return existing
-    job = Job(kind=kind, payload=payload, idempotency_key=key)
-    db.add(job)
-    db.flush()
+    if db.bind.dialect.name == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert
+    else:
+        from sqlalchemy.dialects.sqlite import insert
+
+    db.execute(
+        insert(Job)
+        .values(kind=kind, payload=payload, idempotency_key=key)
+        .on_conflict_do_nothing(index_elements=["idempotency_key"])
+    )
+    job = db.scalar(select(Job).where(Job.idempotency_key == key))
+    if job.kind != kind or job.payload != payload:
+        raise ValueError("Idempotency key was already used for different work")
     return job
 
 
@@ -131,9 +138,9 @@ def title_for(fields):
     return f"{kind} {flower} {color}".strip()
 
 
-def process_extraction(db, version_id, pipeline_version="hybrid-v1"):
+def process_extraction(db, version_id, pipeline_version="hybrid-v1", prepared=None):
     version = db.get(PostVersion, version_id)
-    if not version or not version.caption:
+    if not version or not version.caption or aware(version.retention_until) <= utcnow():
         raise CapabilityError("Source content is missing or has expired.", "source_expired")
     post = db.get(SourcePost, version.post_id)
     if post.access_state == "removed":
@@ -152,7 +159,9 @@ def process_extraction(db, version_id, pipeline_version="hybrid-v1"):
         linked = db.scalar(select(ListingSource).where(ListingSource.version_id == version.id))
         return {"listing_id": linked.listing_id if linked else None, "duplicate": True}
     cost = 0
-    if provider == "openai":
+    if prepared is not None:
+        result, cost = prepared
+    elif provider == "openai":
         images = []
         from .storage import get_media_bytes
 

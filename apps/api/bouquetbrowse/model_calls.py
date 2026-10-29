@@ -1,0 +1,184 @@
+"""Durable paid-call receipts. A timeout is not permission to bill again."""
+
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
+from datetime import timedelta
+from decimal import ROUND_CEILING, Decimal
+
+from sqlalchemy import func, select, text
+
+from . import db as database
+from .config import get_settings
+from .db import aware, utcnow
+from .models import CostEntry
+from .pipeline import digest
+from .runtime_models import GraphExecution, ModelCall
+
+
+@dataclass(frozen=True)
+class CallScope:
+    key: str
+    limit_microusd: int
+    execution_id: str | None = None
+    lease: object | None = None
+
+
+CURRENT_SCOPE = ContextVar("model_call_scope", default=None)
+
+
+@contextmanager
+def call_scope(scope):
+    token = CURRENT_SCOPE.set(scope)
+    try:
+        yield
+    finally:
+        CURRENT_SCOPE.reset(token)
+
+
+def microusd(amount):
+    value = Decimal(str(amount))
+    if not value.is_finite() or value < 0:
+        raise ValueError("Spending amounts must be finite and nonnegative")
+    return int((value * 1_000_000).to_integral_value(rounding=ROUND_CEILING))
+
+
+def verify_scope(db, scope):
+    from .providers import CapabilityError
+
+    if scope.lease:
+        from .leases import guard
+
+        guard(db, scope.lease)
+    if scope.execution_id:
+        execution = db.get(GraphExecution, scope.execution_id)
+        if not execution or execution.state in {"cancelled", "superseded", "withdrawn"}:
+            raise CapabilityError("Execution is no longer active.", "execution_cancelled")
+        if execution.deadline and aware(execution.deadline) <= utcnow():
+            raise CapabilityError("Execution deadline reached.", "run_deadline")
+
+
+def lock_spending(db):
+    if db.bind.dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(73402911)"))
+
+
+def amount_expression():
+    # Historical rows written before the integer ledger migration remain countable.
+    return func.coalesce(func.nullif(CostEntry.amount_microusd, 0), func.round(CostEntry.amount_usd * 1_000_000))
+
+
+def reserve_entry(db, model, amount):
+    from .providers import CapabilityError
+
+    reserved = microusd(amount)
+    if reserved <= 0:
+        raise ValueError("A positive reservation is required")
+    lock_spending(db)
+    first = utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    spent = db.scalar(
+        select(func.coalesce(func.sum(amount_expression()), 0)).where(
+            CostEntry.created_at >= first,
+            CostEntry.state.in_(["reserved", "settled", "uncertain"]),
+        )
+    )
+    if spent + reserved > microusd(get_settings().monthly_model_budget_usd):
+        raise CapabilityError("Monthly model budget reached. Review spending before retrying.", "budget_exhausted")
+    entry = CostEntry(
+        provider="openai", model=model, amount_usd=reserved / 1_000_000, amount_microusd=reserved, state="reserved"
+    )
+    db.add(entry)
+    db.flush()
+    return entry
+
+
+def invoke_once(model, request, invoke, reservation_usd=0.10):
+    """invoke returns (validated JSON result, usage JSON, actual USD). No network transaction."""
+    from .providers import CapabilityError
+
+    request_hash = digest({"model": model, "request": request})
+    scope = CURRENT_SCOPE.get() or CallScope(f"request:{request_hash}", microusd(reservation_usd))
+    blocked = None
+    with database.SessionLocal() as db:
+        lock_spending(db)
+        verify_scope(db, scope)
+        previous = db.scalar(
+            select(ModelCall)
+            .where(
+                ModelCall.scope_key == scope.key,
+                ModelCall.request_hash == request_hash,
+            )
+            .order_by(ModelCall.attempt.desc())
+            .limit(1)
+        )
+        if previous and previous.state == "succeeded":
+            if previous.result is None or aware(previous.retention_until) <= utcnow():
+                raise CapabilityError("Cached model evidence expired; request explicit reprocessing.", "call_expired")
+            return previous.result, previous.usage
+        if previous and previous.state in {"dispatched", "uncertain", "failed"} and not previous.replay_authorized:
+            previous.state = "uncertain" if previous.state == "dispatched" else previous.state
+            db.get(CostEntry, previous.cost_id).state = "uncertain"
+            db.commit()
+            blocked = previous.id
+        if blocked is None:
+            if previous and previous.state == "prepared":
+                call = previous
+            else:
+                spent = db.scalar(
+                    select(func.coalesce(func.sum(amount_expression()), 0))
+                    .join(ModelCall, ModelCall.cost_id == CostEntry.id)
+                    .where(ModelCall.scope_key == scope.key)
+                )
+                if spent + microusd(reservation_usd) > scope.limit_microusd:
+                    raise CapabilityError("Execution model allowance reached.", "scope_budget_exhausted")
+                cost = reserve_entry(db, model, reservation_usd)
+                call = ModelCall(
+                    scope_key=scope.key,
+                    request_hash=request_hash,
+                    attempt=previous.attempt + 1 if previous else 1,
+                    execution_id=scope.execution_id,
+                    job_id=scope.lease.job_id if scope.lease else None,
+                    cost_id=cost.id,
+                    model=model,
+                    state="prepared",
+                    retention_until=utcnow() + timedelta(days=30),
+                )
+                db.add(call)
+                db.flush()
+            call_id = call.id
+            # Commit dispatch before the request. A crash here must not repeat it automatically.
+            call.state = "dispatched"
+            db.commit()
+    if blocked:
+        raise CapabilityError("An uncertain paid call requires explicit replay in admin.", "call_replay_required")
+    try:
+        result, usage, actual_usd = invoke()
+    except Exception as exc:
+        with database.SessionLocal() as db:
+            call = db.get(ModelCall, call_id)
+            call.state = "uncertain"
+            db.get(CostEntry, call.cost_id).state = "uncertain"
+            db.commit()
+        raise CapabilityError(
+            "Paid request outcome is uncertain; reservation retained. Explicit replay required.", "call_replay_required"
+        ) from exc
+    with database.SessionLocal() as db:
+        call = db.get(ModelCall, call_id)
+        # Recording a receipt is allowed after cancellation; publishing its result is not.
+        call.result, call.usage, call.state = result, usage, "succeeded"
+        cost = db.get(CostEntry, call.cost_id)
+        cost.amount_microusd = microusd(actual_usd)
+        cost.amount_usd, cost.usage, cost.state = cost.amount_microusd / 1_000_000, usage, "settled"
+        db.commit()
+    return result, usage
+
+
+def authorize_replay(db, call_id, actor):
+    from .providers import CapabilityError
+
+    call = db.get(ModelCall, call_id)
+    if not call or call.state not in {"uncertain", "failed"}:
+        raise CapabilityError("Only uncertain/failed calls can be explicitly replayed.", "invalid_replay")
+    call.replay_authorized = True
+    call.replay_actor = actor
+    return call

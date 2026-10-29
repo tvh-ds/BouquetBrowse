@@ -245,6 +245,8 @@ class Job(Identity, Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     run_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[str | None] = mapped_column(String(36))
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
     result: Mapped[dict | None] = mapped_column(JSON)
 
@@ -292,6 +294,7 @@ class CostEntry(Identity, Base):
     provider: Mapped[str] = mapped_column(String(40))
     model: Mapped[str] = mapped_column(String(160))
     amount_usd: Mapped[float] = mapped_column(Float)
+    amount_microusd: Mapped[int] = mapped_column(BigInteger, default=0)
     state: Mapped[str] = mapped_column(String(24), default="reserved")
     usage: Mapped[dict] = mapped_column(JSON, default=dict)
 
@@ -304,4 +307,4 @@ class RateBucket(Base):
 
 
 # Register conversation tables in the shared metadata.
-from . import conversation_models  # noqa: E402, F401
+from . import conversation_models, runtime_models  # noqa: E402, F401

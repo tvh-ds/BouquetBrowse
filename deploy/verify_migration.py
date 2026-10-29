@@ -32,6 +32,9 @@ with engine.begin() as connection:
     connection.execute(text("SELECT id FROM jobs LIMIT 1"))
     connection.execute(text("SELECT id FROM conversation_captures LIMIT 1"))
     connection.execute(text("SELECT id FROM offer_occurrences LIMIT 1"))
+    connection.execute(text("SELECT id FROM graph_executions LIMIT 1"))
+    connection.execute(text("SELECT id FROM model_calls LIMIT 1"))
+    connection.execute(text("SELECT thread_id FROM graph_checkpoints.checkpoints LIMIT 1"))
     assert not connection.scalar(
         text("SELECT has_schema_privilege(current_user,'public','CREATE')")
     )
