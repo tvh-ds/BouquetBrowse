@@ -20,7 +20,8 @@ BEGIN
       'account_aliases','message_edges','conversation_captures','capture_members',
       'offer_occurrences','offer_associations','canonical_configurations','canonical_links',
       'offer_claims','taxonomy_terms','discovery_settings','graph_executions',
-      'discovery_frontier','action_receipts','model_calls','execution_events')
+      'discovery_frontier','action_receipts','model_calls','execution_events',
+      'browser_observations','profile_snapshots')
   LOOP
     EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.%I TO bouquet_runtime',entry.tablename);
     EXECUTE format('DROP POLICY IF EXISTS runtime_service ON public.%I',entry.tablename);

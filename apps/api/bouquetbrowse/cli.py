@@ -10,12 +10,36 @@ from .seed import seed_demo
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["demo", "member", "openapi"])
+    parser.add_argument("command", choices=["demo", "member", "openapi", "discovery-init", "browser-login"])
     parser.add_argument("--user-id")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--role", choices=["tester", "reviewer", "admin"], default="tester")
     args = parser.parse_args()
-    if args.command == "demo":
+    if args.command == "browser-login":
+        from .browser import open_browser
+
+        print("Sign in directly in the dedicated browser. No cookies are copied; close the window to cancel.")
+        with open_browser(get_settings().discovery_profile_dir, headless=False) as browser:
+            browser.page.goto("https://www.threads.com/", wait_until="domcontentloaded")
+            browser.page.wait_for_function(
+                """() => [...document.querySelectorAll('a[href^="/@"]')].some(a =>
+                /profile/i.test(a.getAttribute('aria-label')||'') || a.querySelector('[aria-label="Profile"]'))""",
+                timeout=900000,
+            )
+            print(
+                "Dedicated Threads session is ready. Browser discovery still requires PostgreSQL and operator resume."
+            )
+    elif args.command == "discovery-init":
+        if engine.dialect.name != "postgresql":
+            raise SystemExit("Discovery requires PostgreSQL and migration-owner checkpoint setup first.")
+        from .discovery import seed_frontier, settings_row
+
+        with SessionLocal() as db:
+            settings_row(db)
+            seed_frontier(db)
+            db.commit()
+        print("Discovery initialized in paused state; no recurring publication is enabled.")
+    elif args.command == "demo":
         if get_settings().app_mode != "demo":
             raise SystemExit("Never seed demo data into pilot mode.")
         Base.metadata.create_all(engine)

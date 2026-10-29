@@ -67,6 +67,10 @@ app = FastAPI(
     redoc_url=None,
 )
 
+from .discovery_api import router as discovery_router  # noqa: E402
+
+app.include_router(discovery_router)
+
 
 @app.middleware("http")
 async def request_context(request, call_next):

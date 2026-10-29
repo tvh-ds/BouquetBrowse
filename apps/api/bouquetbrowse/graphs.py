@@ -8,7 +8,7 @@ from langgraph.types import interrupt
 
 from .providers import CapabilityError
 
-BEHAVIOR_VERSION = "threads-graphs-v1"
+BEHAVIOR_VERSION = "threads-graphs-v2"
 
 
 class GraphState(TypedDict, total=False):
@@ -57,7 +57,7 @@ def discovery_graph(services: GraphServices, checkpointer):
     builder.add_edge("load_limits", "select_task")
     builder.add_conditional_edges("select_task", lambda s: "finish" if s.get("stop") else "observe")
     for source, target in zip(stages[2:], stages[3:], strict=False):
-        builder.add_edge(source, target)
+        builder.add_conditional_edges(source, lambda s, next_node=target: "finish" if s.get("stop") else next_node)
     builder.add_conditional_edges("dispatch", lambda s: "finish" if s.get("stop") else "select_task")
     builder.add_edge("finish", END)
     return builder.compile(checkpointer=checkpointer)

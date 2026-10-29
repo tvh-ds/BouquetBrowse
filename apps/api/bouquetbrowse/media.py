@@ -36,7 +36,7 @@ def download_media(url):
     request = httpx.Request(
         "GET", httpx.URL(url).copy_with(host=address), headers={"Host": host}, extensions={"sni_hostname": host}
     )
-    with httpx.Client(timeout=15, follow_redirects=False) as client:
+    with httpx.Client(timeout=15, follow_redirects=False, trust_env=False) as client:
         response = client.send(request, stream=True)
         try:
             if response.status_code != 200:
@@ -56,11 +56,11 @@ def prepare_media(raw: bytes):
     if len(raw) > 10 * 1024 * 1024:
         raise ValueError("Image exceeds 10 MB")
     try:
-        with Image.open(io.BytesIO(raw)) as source:
+        with Image.open(io.BytesIO(raw), formats=["JPEG", "PNG", "WEBP"]) as source:
             if source.format not in {"JPEG", "PNG", "WEBP"}:
                 raise ValueError("Only JPEG, PNG and WebP are supported")
             source.verify()
-        with Image.open(io.BytesIO(raw)) as source:
+        with Image.open(io.BytesIO(raw), formats=["JPEG", "PNG", "WEBP"]) as source:
             image = ImageOps.exif_transpose(source).convert("RGB")
             if image.width * image.height > 20_000_000:
                 raise ValueError("Image pixel limit exceeded")

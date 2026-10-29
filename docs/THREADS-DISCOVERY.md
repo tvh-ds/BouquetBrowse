@@ -39,7 +39,7 @@ Digests project durable catalog-change events into Hanoi-day snapshots after the
 |---|---|
 | 10 Conversation foundation | Implemented: schema, contracts, commands, legacy migration and 12 regression tests; no live collection yet |
 | 11 Durable runtime | Implemented with synthetic tests: fenced leases, durable model receipts, compact LangGraph workflows and private PostgreSQL checkpointer setup; no live browser/offer graph services enabled yet |
-| 12 Threads browser discovery | Planned |
+| 12 Threads browser discovery | Implemented with synthetic Chromium tests: bounded controller, visible-UI adapters, durable frontier/captures, dedicated login, authenticated admin APIs. Collector access/coverage with the dedicated profile remains unvalidated |
 | 13 Conversation offers | Planned |
 | 14 Mixed-flower recognition | Planned |
 | 15 Catalog, profiles, digests | Planned |

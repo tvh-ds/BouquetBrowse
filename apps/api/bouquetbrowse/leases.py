@@ -23,7 +23,7 @@ class Lease:
     token: str
 
 
-def claim(factory=None, kinds=None):
+def claim(factory=None, kinds=None, exclude_kinds=None):
     factory = factory or database.SessionLocal
     with factory() as db:
         now = utcnow()
@@ -34,6 +34,8 @@ def claim(factory=None, kinds=None):
         )
         if kinds is not None:
             query = query.where(Job.kind.in_(kinds))
+        if exclude_kinds:
+            query = query.where(Job.kind.not_in(exclude_kinds))
         job = db.scalar(query.order_by(Job.run_after, Job.id).with_for_update(skip_locked=True).limit(1))
         if not job:
             return None

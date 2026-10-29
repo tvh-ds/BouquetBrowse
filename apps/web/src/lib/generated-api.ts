@@ -4,6 +4,109 @@
  */
 
 export interface paths {
+  "/v1/admin/discovery/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Status */
+    get: operations["status_v1_admin_discovery_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/discovery/settings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Configure */
+    patch: operations["configure_v1_admin_discovery_settings_patch"];
+    trace?: never;
+  };
+  "/v1/admin/discovery/runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Runs */
+    get: operations["runs_v1_admin_discovery_runs_get"];
+    put?: never;
+    /** Start Run */
+    post: operations["start_run_v1_admin_discovery_runs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/discovery/runs/{execution_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Run Detail */
+    get: operations["run_detail_v1_admin_discovery_runs__execution_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/discovery/runs/{execution_id}/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cancel Run */
+    post: operations["cancel_run_v1_admin_discovery_runs__execution_id__cancel_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/discovery/frontier": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Frontier */
+    get: operations["frontier_v1_admin_discovery_frontier_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/health/live": {
     parameters: {
       query?: never;
@@ -763,6 +866,20 @@ export interface components {
       /** Configuration Evidence Quote */
       configuration_evidence_quote?: string | null;
     };
+    /** RunAcceptedView */
+    RunAcceptedView: {
+      /** Execution Id */
+      execution_id: string;
+      /** Job Id */
+      job_id: string;
+      /** State */
+      state: string;
+    };
+    /** RunBody */
+    RunBody: {
+      /** Seed Queries */
+      seed_queries?: string[];
+    };
     /** SellerView */
     SellerView: {
       /** Id */
@@ -789,6 +906,20 @@ export interface components {
     } & {
       [key: string]: unknown;
     };
+    /** SettingsBody */
+    SettingsBody: {
+      /** Expected Version */
+      expected_version: number;
+      /** Paused */
+      paused: boolean;
+    };
+    /** SettingsView */
+    SettingsView: {
+      /** Paused */
+      paused: boolean;
+      /** Settings Version */
+      settings_version: number;
+    };
     /** SimilarView */
     SimilarView: {
       /** Items */
@@ -814,6 +945,27 @@ export interface components {
       version_id: string;
     } & {
       [key: string]: unknown;
+    };
+    /** StatusView */
+    StatusView: {
+      /** Enabled */
+      enabled: boolean;
+      /** Paused */
+      paused: boolean;
+      /** Settings Version */
+      settings_version: number;
+      /** Postgres */
+      postgres: boolean;
+      /** Model Configured */
+      model_configured: boolean;
+      /** Browser Installed */
+      browser_installed: boolean;
+      /** Release Gates */
+      release_gates: {
+        [key: string]: unknown;
+      };
+      /** Publication Enabled */
+      publication_enabled: boolean;
     };
     /** SummaryView */
     SummaryView: {
@@ -889,6 +1041,196 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  status_v1_admin_discovery_status_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StatusView"];
+        };
+      };
+    };
+  };
+  configure_v1_admin_discovery_settings_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SettingsBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SettingsView"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  runs_v1_admin_discovery_runs_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  start_run_v1_admin_discovery_runs_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "idempotency-key"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RunBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunAcceptedView"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  run_detail_v1_admin_discovery_runs__execution_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        execution_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  cancel_run_v1_admin_discovery_runs__execution_id__cancel_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        execution_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  frontier_v1_admin_discovery_frontier_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
   health_live_health_live_get: {
     parameters: {
       query?: never;
