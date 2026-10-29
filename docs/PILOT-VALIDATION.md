@@ -1,0 +1,21 @@
+# Private pilot validation
+
+Implementation and fixture checks are complete tooling, not evidence of live quality. The user has deferred collection, paid inference and annotation until an explicit command. No real twenty-conversation proof or 100-image recognition result is installed by this delivery. Publication defaults closed.
+
+## Reference review
+
+Use ten distinct seller-rooted and ten buyer-request conversations, with mixed bouquets, multiple sellers, missing prices, conflicts and partial captures represented. Capture both the actual conversation and the independent expected interpretation. Two distinct reviewers jointly resolve the reference once. Each reference offer records its stable occurrence ID, expected seller account, expected abstention and exact commercial-signature hash. `commercial_signature` hashes the expected grounded prices and commercial claims, including their immutable message references. Construct this expected structure from reviewed evidence, independently of the candidate output; copying the candidate signature would defeat the evaluation.
+
+`ConversationJudgment` defines the private JSONL format. `pilot-stage` compares references against current stored analyses and their pinned configuration, rather than accepting model-provided correctness scores. Every candidate in each captured conversation must be judged. Repeated captures of the same source and repeated offer cases do not inflate coverage. Both patterns need successful non-abstaining examples and the set needs abstention cases. Zero seller/binding/abstention errors and complete reference coverage are required.
+
+Image JSONL uses `ImageJudgment` in `recognition_evaluation.py`. Its image ID must reference a retained media asset with matching checksum. A real proof also supplies `joint_record_id` and `image_only_record_id`: predictions are checked against the matching image-specific retained recognition receipts and exact configuration, rather than trusting copied prediction arrays. Use 100 distinct bouquet images, 60 development / 40 holdout minimum, seller and reused-image-family separation, and at least 20% double review. Keep real images, labels, expected claims and permission records outside Git, normally in ignored `.data/evaluation/`. Existing per-category sample, precision, recall, intervals, coverage, latency and cost rules are unchanged. An image-only prediction path is evaluated separately and cannot publish.
+
+## Offline commands and approval
+
+After migration, `uv run --project apps/api python -m bouquetbrowse.cli pilot-status` reads current gates without browsing or inference. `pilot-stage --proof-kind conversation|recognition --dataset-kind permitted_real --input <private.jsonl>` computes a summary and stages its dataset/report hashes. Synthetic is the default and cannot open a release gate. The existing `evaluate-images` command remains a report-only operation.
+
+Admin-only `/v1/admin/pilot/proofs` lists/stages summaries; `/readiness` reports the exact current configuration. Approval at `/proofs/{id}/approve` requires the expected report hash, an active admin membership, a private permission-record identifier and explicit joint-review confirmation. It rechecks retained evidence and gates. Approved recognition reports install only passing flower categories. Revoke at `/proofs/{id}/revoke` with the same expected hash. The reference payload is not retained in the proof row: only minimal summaries, hashes, dependency IDs and the audit attestation remain.
+
+Readiness requires both independently approved proofs for the exact extraction/escalation models, recognition/prompt/schema/preprocessing/taxonomy/CV configuration and graph behavior version. Configuration changes require reevaluation. Missing, revoked, tampered or expired proof dependencies close eligibility. Arbitrary `discovery_settings.release_gates` values are never an authority. Recognition support without an approved matching proof is tentative.
+
+These are observed pilot thresholds, not universal performance guarantees. A permission attestation is a human review record, not automated proof of licensing. Keep failures and abstentions in the report; fix regressions and repeat affected cases rather than changing targets. Actual coverage, qualified comparisons, costs and latency are reported only after the separately commanded live run.

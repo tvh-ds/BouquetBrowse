@@ -2,5 +2,6 @@
 
 
 def publication_ready(db, configuration):
-    # Module 16 replaces this closed gate with proof-backed configuration checks.
-    return False
+    from .pilot import readiness
+
+    return readiness(db, configuration)["ready"]

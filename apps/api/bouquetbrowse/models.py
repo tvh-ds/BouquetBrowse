@@ -312,6 +312,7 @@ from . import (  # noqa: E402, F401
     catalog_event_models,
     conversation_models,
     offer_models,
+    pilot_models,
     recognition_models,
     runtime_models,
 )

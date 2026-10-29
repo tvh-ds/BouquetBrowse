@@ -130,7 +130,9 @@ def test_visual_labels_stay_tentative_without_matching_benchmark(db):
     )
     db.flush()
     components = merge_components(db, [], outputs, CONFIG, views)
-    assert next(c for c in components if c["flower"] == "rose")["supported"]
+    assert not next(c for c in components if c["flower"] == "rose")[
+        "supported"
+    ]  # Unbacked flags cannot certify labels.
     changed = {**CONFIG, "extraction_model": "gpt-6.1-sol"}
     assert not any(c["supported"] for c in merge_components(db, [], outputs, changed, views))
 

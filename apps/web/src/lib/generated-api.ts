@@ -311,6 +311,75 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/admin/pilot/readiness": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Readiness */
+    get: operations["get_readiness_v1_admin_pilot_readiness_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/pilot/proofs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Proofs */
+    get: operations["proofs_v1_admin_pilot_proofs_get"];
+    put?: never;
+    /** Stage */
+    post: operations["stage_v1_admin_pilot_proofs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/pilot/proofs/{proof_id}/approve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Approve */
+    post: operations["approve_v1_admin_pilot_proofs__proof_id__approve_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/admin/pilot/proofs/{proof_id}/revoke": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Revoke */
+    post: operations["revoke_v1_admin_pilot_proofs__proof_id__revoke_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/health/live": {
     parameters: {
       query?: never;
@@ -757,6 +826,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** ApprovalBody */
+    ApprovalBody: {
+      /** Expected Report Hash */
+      expected_report_hash: string;
+      /** Permission Reference */
+      permission_reference: string;
+      /** Joint Review Confirmed */
+      joint_review_confirmed: boolean;
+    };
     /** AssertionView */
     AssertionView: {
       /** Id */
@@ -1197,6 +1275,24 @@ export interface components {
       };
     } & {
       [key: string]: unknown;
+    };
+    /** ProofBody */
+    ProofBody: {
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "conversation" | "recognition";
+      /**
+       * Dataset Kind
+       * @default synthetic
+       * @enum {string}
+       */
+      dataset_kind: "synthetic" | "permitted_real";
+      /** Values */
+      values: {
+        [key: string]: unknown;
+      }[];
     };
     /** PublicPagePreview */
     PublicPagePreview: {
@@ -1953,6 +2049,149 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["ReplayBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_readiness_v1_admin_pilot_readiness_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  proofs_v1_admin_pilot_proofs_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+    };
+  };
+  stage_v1_admin_pilot_proofs_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProofBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_v1_admin_pilot_proofs__proof_id__approve_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        proof_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ApprovalBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  revoke_v1_admin_pilot_proofs__proof_id__revoke_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        proof_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ApprovalBody"];
       };
     };
     responses: {
