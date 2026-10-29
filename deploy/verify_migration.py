@@ -1,10 +1,12 @@
 """Verify migrated PostgreSQL controls in a disposable CI database only."""
 
 from pathlib import Path
+from uuid import uuid4
 
 from bouquetbrowse import models  # noqa: F401
 from bouquetbrowse.config import get_settings
 from bouquetbrowse.db import Base
+from bouquetbrowse.graphs import discovery_graph, invoke_graph, postgres_checkpointer
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
@@ -38,6 +40,18 @@ with engine.begin() as connection:
     assert not connection.scalar(
         text("SELECT has_schema_privilege(current_user,'public','CREATE')")
     )
+
+
+class CheckpointSmoke:
+    def stage(self, name, state):
+        return {"stop": True} if name == "select_task" else {}
+
+
+with postgres_checkpointer(url) as saver:
+    saver.conn.execute("SET ROLE bouquet_runtime")
+    thread_id = str(uuid4())
+    assert invoke_graph(discovery_graph(CheckpointSmoke(), saver), thread_id)["stop"]
+    saver.delete_thread(thread_id)
 print(
-    "Migration RLS, vector/FTS indexes, runtime access and schema isolation verified."
+    "Migration RLS, vector/FTS indexes, runtime checkpoint writes and schema isolation verified."
 )
