@@ -33,8 +33,13 @@ class Seller(Identity, Base):
 
 class SourceAccount(Identity, Base):
     __tablename__ = "source_accounts"
-    __table_args__ = (UniqueConstraint("platform", "username"),)
-    seller_id: Mapped[str] = mapped_column(ForeignKey("sellers.id"), index=True)
+    __table_args__ = (
+        UniqueConstraint("platform", "username"),
+        UniqueConstraint("platform", "platform_account_id", name="uq_platform_account_id"),
+    )
+    seller_id: Mapped[str | None] = mapped_column(ForeignKey("sellers.id"), index=True)
+    platform_account_id: Mapped[str | None] = mapped_column(String(160))
+    role: Mapped[str] = mapped_column(String(24), default="unresolved")
     platform: Mapped[str] = mapped_column(String(20))
     username: Mapped[str] = mapped_column(String(100))
     profile_url: Mapped[str | None] = mapped_column(Text)
@@ -48,7 +53,7 @@ class SourcePost(Identity, Base):
     platform: Mapped[str] = mapped_column(String(20))
     platform_post_id: Mapped[str] = mapped_column(String(160))
     url: Mapped[str | None] = mapped_column(Text)
-    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     access_state: Mapped[str] = mapped_column(String(20), default="accessible")
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -296,3 +301,7 @@ class RateBucket(Base):
     key: Mapped[str] = mapped_column(String(200), primary_key=True)
     count: Mapped[int] = mapped_column(Integer, default=0)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+# Register conversation tables in the shared metadata.
+from . import conversation_models  # noqa: E402, F401

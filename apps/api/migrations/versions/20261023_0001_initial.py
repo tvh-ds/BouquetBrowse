@@ -1,10 +1,12 @@
 """Initial evidence, catalog, observations, jobs and vector schema."""
 
+from pathlib import Path
+from runpy import run_path
+
 from alembic import op
 from sqlalchemy import text
 
-from bouquetbrowse import models  # noqa: F401
-from bouquetbrowse.db import Base
+Base = run_path(str(Path(__file__).parents[1] / "legacy_schema.py"))["Base"]
 
 revision = "20261023_0001"
 down_revision = None
