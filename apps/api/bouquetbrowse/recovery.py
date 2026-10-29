@@ -10,6 +10,39 @@ from .config import ROOT
 from .operations_models import DeletionRecord
 
 
+def postgres_cli_connection(url):
+    from sqlalchemy.engine import URL
+
+    allowed = {"sslmode", "sslrootcert", "connect_timeout", "target_session_attrs", "channel_binding"}
+    if set(url.query) - allowed:
+        raise ValueError("Unsupported backup/restore connection options; keep credentials out of URI query parameters")
+    # URL.set(password=None) preserves the existing password. Construct a fresh URL.
+    return URL.create(
+        "postgresql", username=url.username, host=url.host, port=url.port, database=url.database, query=url.query
+    ).render_as_string(hide_password=False)
+
+
+def postgres_cli_environment(password):
+    import os
+
+    allowed = {
+        "PATH",
+        "SYSTEMROOT",
+        "WINDIR",
+        "TEMP",
+        "TMP",
+        "HOME",
+        "APPDATA",
+        "LANG",
+        "LC_ALL",
+        "SSL_CERT_FILE",
+        "PGSSLROOTCERT",
+        "PGSSLMODE",
+        "RECOVERY_POSTGRES_CONTAINER",
+    }
+    return {**{key: value for key, value in os.environ.items() if key.upper() in allowed}, "PGPASSWORD": password or ""}
+
+
 def private_directory(path):
     folder = Path(path).resolve()
     if folder.is_relative_to(ROOT) and not folder.is_relative_to(ROOT / ".data"):

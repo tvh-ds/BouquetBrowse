@@ -3,20 +3,38 @@
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .auth import require_admin
+from .auth import User, require_admin
 from .config import get_settings
 from .db import aware, get_db, utcnow
-from .models import CostEntry, Job, Listing, PriceObservation, SourcePost
+from .maintenance import MESSAGES, monthly_spending
+from .maintenance_models import OperationAlert
+from .models import Job, Listing, PriceObservation, SourcePost
 from .operations_models import RuntimeStatus, ScheduleSlot
 from .pilot import readiness
+from .schemas import StrictModel
 from .visibility import visible_listings
 
 router = APIRouter(prefix="/v1/admin/operations", dependencies=[Depends(require_admin)])
 Database = Annotated[Session, Depends(get_db)]
+
+
+class AlertDecision(StrictModel):
+    expected_version: int = Field(ge=1)
+
+
+@router.post("/alerts/{alert_id}/acknowledge")
+def acknowledge(alert_id: str, body: AlertDecision, db: Database, actor: Annotated[User, Depends(require_admin)]):
+    alert = db.scalar(select(OperationAlert).where(OperationAlert.id == alert_id).with_for_update())
+    if not alert or alert.version != body.expected_version or alert.state == "resolved":
+        raise HTTPException(409, detail="Alert changed; reload before acknowledging")
+    alert.state, alert.acknowledged_by = "acknowledged", actor.id
+    db.commit()
+    return {"id": alert.id, "state": alert.state}
 
 
 @router.get("/status")
@@ -48,6 +66,24 @@ def status(db: Database):
 
     return {
         "recurring_configured": get_settings().recurring_enabled,
+        "backups_configured": get_settings().backups_enabled,
+        "alerts": [
+            {
+                "id": a.id,
+                "code": a.code,
+                "state": a.state,
+                "severity": a.severity,
+                "version": a.version,
+                "message": MESSAGES[a.code],
+                "details": a.details,
+                "last_seen_at": a.last_seen_at,
+            }
+            for a in db.scalars(select(OperationAlert).order_by(OperationAlert.last_seen_at.desc()).limit(100))
+        ],
+        "backups": [
+            {"id": j.id, "state": j.state, "created_at": j.created_at, "result": j.result}
+            for j in db.scalars(select(Job).where(Job.kind == "backup").order_by(Job.created_at.desc()).limit(10))
+        ],
         "readiness": readiness(db),
         "roles": [role_health(row) for row in db.scalars(select(RuntimeStatus))],
         "slots": [
@@ -64,11 +100,8 @@ def status(db: Database):
             "reviewed_prices": sum(p.reviewed for p in prices),
             "supported_size_listings": sum(listing.stem_count is not None for listing in listings),
         },
-        "model_cost_microusd": db.scalar(
-            select(func.coalesce(func.sum(CostEntry.amount_microusd), 0)).where(
-                CostEntry.state.in_(["reserved", "settled", "uncertain"])
-            )
-        ),
+        "model_cost_microusd": monthly_spending(db),
+        "model_budget_microusd": round(get_settings().monthly_model_budget_usd * 1000000),
         "quality": "See audited pilot proofs; fixture success does not establish live quality.",
         "latency": "Not measured" if not prices else "Use private per-run evaluation measurements.",
     }

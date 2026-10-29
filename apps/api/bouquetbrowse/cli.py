@@ -28,6 +28,7 @@ def main():
             "evaluation-export",
             "evaluation-run",
             "evaluation-status",
+            "backup-native",
         ],
     )
     parser.add_argument("--user-id")
@@ -40,7 +41,11 @@ def main():
     parser.add_argument("--proof-kind", choices=["conversation", "recognition"])
     parser.add_argument("--role", choices=["tester", "reviewer", "admin"], default="tester")
     args = parser.parse_args()
-    if args.command in {"evaluation-export", "evaluation-run", "evaluation-status"}:
+    if args.command == "backup-native":
+        from .backups import create_backup
+
+        print(json.dumps(create_backup(SessionLocal)))
+    elif args.command in {"evaluation-export", "evaluation-run", "evaluation-status"}:
         from sqlalchemy import select
 
         from .db import aware, utcnow
