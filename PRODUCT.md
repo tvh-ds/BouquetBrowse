@@ -36,5 +36,11 @@ README and approved technical blueprint. No authenticated Meta access, real sell
 - One seller, one representative in price benchmarks.
 - Make the first implementation runnable across the full MVP.
 
+## Threads discovery and digest update — 29 October 2026
+
+The approved implementation now includes bounded, account-authenticated Threads browsing on the operator's awake Windows computer: search, FYP, profiles, posts and replies. Instagram browser automation and cloud-hosted browsing remain deferred. Capture conversation evidence independently of seller/catalog identity; buyers and unresolved accounts never automatically become sellers. Stable offer occurrences survive recognition corrections. Seller-rooted offers, seller replies to buyer requests and explicitly labeled recreation quotations are distinct evidence patterns.
+
+After the twenty-conversation workflow proof and 100-image mixed-bouquet benchmark, automatically publish evidence-supported provisional offers. Commercial review remains required for benchmark eligibility, not every catalog publication. Composition is florist-level and multi-label, with separate evidence/uncertainty per type. Daily in-app digests summarize attributable changes. See docs/THREADS-DISCOVERY.md for execution boundaries, operating limits and delivery gates.
+
 ## Accessibility & Inclusion
 Keyboard access, visible focus, accessible names, semantic controls, reduced motion, responsive mobile comparisons, Vietnamese diacritics and localization.

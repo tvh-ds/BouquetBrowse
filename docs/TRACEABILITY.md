@@ -2,6 +2,8 @@
 
 Status: **implemented** means baseline code and fixture behavior; **configured** means code requires external credentials; **deferred** means not claimed in this delivery.
 
+The newer conversation/discovery delivery is tracked in THREADS-DISCOVERY.md. Its approved local browsing, provisional publication and multi-label recognition decisions supersede older defaults; planned modules must not be presented as live capability.
+
 | Requirement | Status / implementation |
 |---|---|
 | All MVP pages and bilingual mobile flows | Implemented: apps/web/src/app and components |

@@ -30,6 +30,8 @@ with engine.begin() as connection:
     connection.execute(text("SET LOCAL ROLE bouquet_runtime"))
     connection.execute(text("SELECT id FROM listings LIMIT 1"))
     connection.execute(text("SELECT id FROM jobs LIMIT 1"))
+    connection.execute(text("SELECT id FROM conversation_captures LIMIT 1"))
+    connection.execute(text("SELECT id FROM offer_occurrences LIMIT 1"))
     assert not connection.scalar(
         text("SELECT has_schema_privilege(current_user,'public','CREATE')")
     )

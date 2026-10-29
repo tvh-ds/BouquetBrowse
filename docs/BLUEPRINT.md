@@ -33,6 +33,8 @@ Each extracted field records value, stated/visual/context/unknown/conflict statu
 
 ## Acquisition and processing
 
+**29 October 2026 superseding decision:** implement the user-approved local Threads browser discovery and conversation-aware offer pipeline described in THREADS-DISCOVERY.md. This replaces the API-only/bounded-URL acquisition boundary for Threads and the universal prepublication review gate. Browser access remains bounded and read-only; authentication challenges and platform restrictions stop collection. Instagram browser automation remains deferred. The newer schedule, $100 shared AI ceiling, provisional-publication rules, mixed-flower composition and LangGraph architecture take precedence over older defaults below.
+
 October 2026 operator update: implement bounded anonymous public post-page collection in addition to API adapters. Individual post/share URLs produce an editable import draft and retain review gates. This supersedes API-only acquisition for those explicitly requested public pages; it does not authorize broad crawling or access-control bypass. See PUBLIC-PAGE-COLLECTOR.md.
 
 Use capability-gated official Threads keyword search and Instagram professional business discovery. Actual scopes, fields, quotas and Hanoi coverage must be experimentally verified. Submitted URLs are references, not promises of fetchability. No broad scraping, access-control bypass, anti-bot bypass or silent demo fallback. Operator imports remain usable independently of platform approval. Record content-use/acquisition context; do not put real datasets or private media in this public repository.

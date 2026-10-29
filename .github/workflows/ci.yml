@@ -47,8 +47,9 @@ jobs:
         run: uv run --project apps/api pytest apps/api/tests -q
       - name: PostgreSQL migrations
         env:
-          DATABASE_URL: postgresql+psycopg://bouquet:test-only@127.0.0.1:5432/bouquetbrowse_test
+          DATABASE_URL: postgresql+psycopg://bouquet:test-only@127.0.0.1:5432/bouquetbrowse_migrations_test
         run: |
+          uv run --project apps/api python deploy/create_migration_test_database.py
           uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head
           uv run --project apps/api alembic -c apps/api/alembic.ini downgrade base
           uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head

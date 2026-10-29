@@ -16,7 +16,10 @@ BEGIN
       'extraction_runs','field_assertions','model_versions','price_observations',
       'availability_observations','text_embeddings','image_embeddings','listing_similarity',
       'cohort_runs','cohort_members','jobs','ingestion_cursors','review_actions',
-      'takedown_requests','app_users','interaction_events','cost_entries','rate_buckets')
+      'takedown_requests','app_users','interaction_events','cost_entries','rate_buckets',
+      'account_aliases','message_edges','conversation_captures','capture_members',
+      'offer_occurrences','offer_associations','canonical_configurations','canonical_links',
+      'offer_claims','taxonomy_terms')
   LOOP
     EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.%I TO bouquet_runtime',entry.tablename);
     EXECUTE format('DROP POLICY IF EXISTS runtime_service ON public.%I',entry.tablename);
