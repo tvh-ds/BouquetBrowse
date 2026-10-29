@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     extraction_model: str = "gpt-6-luna"
     escalation_model: str = "gpt-6.1-sol"
     embedding_model: str = "text-embedding-3-small"
-    monthly_model_budget_usd: float = 50
+    monthly_model_budget_usd: float = 100
     per_request_reservation_usd: float = 0.10
     threads_access_token: str = ""
     threads_search_approved: bool = False
@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     siglip_revision: str = ""
     media_dir: Path = ROOT / ".data" / "media"
     public_origin: str = "http://localhost:3000"
+    discovery_enabled: bool = False
+    discovery_profile_dir: Path = ROOT / ".data" / "threads-profile"
+    planner_model: str = "gpt-6.1-sol"
+    discovery_run_budget_usd: float = 0.35
+    offer_budget_usd: float = 0.10
 
     @model_validator(mode="after")
     def validate_environment(self):

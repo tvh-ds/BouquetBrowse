@@ -53,6 +53,7 @@ jobs:
           uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head
           uv run --project apps/api alembic -c apps/api/alembic.ini downgrade base
           uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head
+          uv run --project apps/api python deploy/setup_graph_checkpoints.py
           uv run --project apps/api python deploy/verify_migration.py
       - run: npm ci --ignore-scripts --no-fund
         working-directory: apps/web

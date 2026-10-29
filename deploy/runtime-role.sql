@@ -19,10 +19,25 @@ BEGIN
       'takedown_requests','app_users','interaction_events','cost_entries','rate_buckets',
       'account_aliases','message_edges','conversation_captures','capture_members',
       'offer_occurrences','offer_associations','canonical_configurations','canonical_links',
-      'offer_claims','taxonomy_terms')
+      'offer_claims','taxonomy_terms','discovery_settings','graph_executions',
+      'discovery_frontier','action_receipts','model_calls','execution_events')
   LOOP
     EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.%I TO bouquet_runtime',entry.tablename);
     EXECUTE format('DROP POLICY IF EXISTS runtime_service ON public.%I',entry.tablename);
     EXECUTE format('CREATE POLICY runtime_service ON public.%I TO bouquet_runtime USING (true) WITH CHECK (true)',entry.tablename);
   END LOOP;
+END $$;
+DO $$
+DECLARE entry record;
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname='graph_checkpoints') THEN
+    GRANT USAGE ON SCHEMA graph_checkpoints TO bouquet_runtime;
+    FOR entry IN SELECT tablename FROM pg_tables WHERE schemaname='graph_checkpoints'
+      AND tablename IN ('checkpoints','checkpoint_blobs','checkpoint_writes')
+    LOOP
+      EXECUTE format('GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE graph_checkpoints.%I TO bouquet_runtime',entry.tablename);
+      EXECUTE format('DROP POLICY IF EXISTS runtime_service ON graph_checkpoints.%I',entry.tablename);
+      EXECUTE format('CREATE POLICY runtime_service ON graph_checkpoints.%I TO bouquet_runtime USING (true) WITH CHECK (true)',entry.tablename);
+    END LOOP;
+  END IF;
 END $$;

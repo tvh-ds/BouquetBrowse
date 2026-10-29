@@ -4,11 +4,11 @@ import random
 import time
 from datetime import timedelta
 
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import delete, or_, select
 
 from .adapters import discover
 from .config import get_settings
-from .db import SessionLocal, utcnow
+from .db import SessionLocal, aware, utcnow
 from .models import (
     AvailabilityObservation,
     CohortMember,
@@ -17,7 +17,6 @@ from .models import (
     FieldAssertion,
     ImageEmbedding,
     IngestionCursor,
-    Job,
     Listing,
     ListingSimilarity,
     ListingSource,
@@ -40,29 +39,10 @@ logger = logging.getLogger("bouquetbrowse.worker")
 
 
 def claim_job():
-    with SessionLocal() as db:
-        now = utcnow()
-        job = db.scalar(
-            select(Job)
-            .where(
-                or_(Job.state == "queued", (Job.state == "processing") & (Job.lease_until < now)), Job.run_after <= now
-            )
-            .order_by(Job.run_after, Job.id)
-            .with_for_update(skip_locked=True)
-            .limit(1)
-        )
-        if not job:
-            return None
-        claimed = db.execute(
-            update(Job)
-            .where(Job.id == job.id, Job.state == job.state, Job.attempts == job.attempts)
-            .values(state="processing", attempts=job.attempts + 1, lease_until=now + timedelta(minutes=10))
-        )
-        if claimed.rowcount != 1:
-            db.rollback()
-            return None
-        db.commit()
-        return job.id
+    from .leases import claim
+
+    lease = claim(SessionLocal)
+    return lease.job_id if lease else None
 
 
 def purge_listing(db, listing_id):
@@ -120,9 +100,12 @@ def purge_listing(db, listing_id):
             )
             if not other_use:
                 if asset.storage_key:
-                    from .storage import delete_media
-
-                    delete_media(asset.storage_key)
+                    enqueue(
+                        db,
+                        "delete-media",
+                        {"storage_key": asset.storage_key},
+                        f"delete-media:{asset.id}:{asset.storage_key}",
+                    )
                 asset.source_url, asset.storage_key, asset.state = None, None, "removed"
                 db.execute(delete(ImageEmbedding).where(ImageEmbedding.media_id == asset.id))
     listing.state, listing.title, listing.description, listing.image_path, listing.search_text = (
@@ -141,20 +124,18 @@ def purge_listing(db, listing_id):
         request.state = "purged"
 
 
-def handle_job(db, job):
+def handle_job(db, job, prepared=None):
     p = job.payload
     if job.kind == "extract":
-        return process_extraction(db, p["version_id"], p.get("pipeline_version", "hybrid-v1"))
+        return process_extraction(db, p["version_id"], p.get("pipeline_version", "hybrid-v1"), prepared=prepared)
     if job.kind == "purge":
         purge_listing(db, p["listing_id"])
         return {"purged": True}
     if job.kind == "prepare-media":
-        from .media import download_media, save_media
-
         asset = db.get(MediaAsset, p["media_id"])
-        if asset.state == "removed":
+        if not asset or asset.state == "removed":
             return {"removed": True}
-        key, _, metadata = save_media(download_media(asset.source_url))
+        key, metadata = prepared
         for name, value in metadata.items():
             setattr(asset, name, value)
         asset.storage_key, asset.state = key, "ready"
@@ -171,13 +152,10 @@ def handle_job(db, job):
                 listing.image_path = f"/api/v1/media/{asset.id}"
         return {"media_id": asset.id}
     if job.kind == "embed-image":
-        from .storage import get_media_bytes
-        from .vision import image_embedding
-
         asset = db.get(MediaAsset, p["media_id"])
         if not asset or asset.state != "ready" or not asset.storage_key:
             return {"skipped": True}
-        vector, model = image_embedding(get_media_bytes(asset.storage_key))
+        vector, model = prepared
         if not db.scalar(
             select(ImageEmbedding.id).where(ImageEmbedding.media_id == asset.id, ImageEmbedding.model_version == model)
         ):
@@ -185,7 +163,7 @@ def handle_job(db, job):
         return {"embedded": True, "model": model}
     if job.kind == "embed-text":
         listing = db.get(Listing, p["listing_id"])
-        if listing.state != "published" or listing.is_demo:
+        if not listing or listing.state != "published" or listing.is_demo or prepared is None:
             return {"skipped": True}
         model = get_settings().embedding_model
         if not db.scalar(
@@ -197,12 +175,12 @@ def handle_job(db, job):
                 TextEmbedding(
                     revision_id=p["revision_id"],
                     model_version=model,
-                    vector=list(_live_text_vector(listing.search_text, model)),
+                    vector=prepared,
                 )
             )
         return {"embedded": True}
     if job.kind == "sync":
-        rows, checkpoint = discover(p["source"], p.get("query", "bó hoa Hà Nội"), p.get("username"))
+        rows, checkpoint = prepared
         imported, skipped = [], 0
         for row in rows:
             username = row.get("username")
@@ -218,9 +196,9 @@ def handle_job(db, job):
             if not account:
                 skipped += 1
                 continue
-            seller = db.get(Seller, account.seller_id)
+            seller = db.get(Seller, account.seller_id) if account.seller_id else None
             rights = account.capabilities.get("rights_confirmed", False)
-            if not rights:
+            if not rights or not seller:
                 skipped += 1
                 continue
             caption = row.get("caption") or row.get("text")
@@ -255,9 +233,12 @@ def handle_job(db, job):
             select(MediaAsset).where(MediaAsset.retention_until < now, MediaAsset.state != "removed")
         ).all():
             if asset.storage_key:
-                from .storage import delete_media
-
-                delete_media(asset.storage_key)
+                enqueue(
+                    db,
+                    "delete-media",
+                    {"storage_key": asset.storage_key},
+                    f"delete-media:{asset.id}:{asset.storage_key}",
+                )
             asset.storage_key, asset.source_url, asset.state = None, None, "expired"
             db.execute(delete(ImageEmbedding).where(ImageEmbedding.media_id == asset.id))
         db.execute(delete(RateBucket).where(RateBucket.expires_at < now))
@@ -272,34 +253,142 @@ def handle_job(db, job):
     raise CapabilityError("Unknown job type", "unsupported_job")
 
 
-def run_once():
-    job_id = claim_job()
-    if not job_id:
+def prepare_external(job, lease):
+    """Read snapshots, close the transaction, then perform external work."""
+    from .leases import guard
+
+    p = job.payload
+    if job.kind == "sync":
+        return discover(p["source"], p.get("query", "bó hoa Hà Nội"), p.get("username"))
+    if job.kind == "delete-media":
+        with SessionLocal() as db:
+            used = db.scalar(
+                select(MediaAsset.id)
+                .where(MediaAsset.storage_key == p["storage_key"], MediaAsset.state == "ready")
+                .limit(1)
+            )
+            guard(db, lease)
+            db.commit()
+        if not used:
+            from .storage import delete_media
+
+            delete_media(p["storage_key"])
+        return {"deleted": not bool(used)}
+    if job.kind == "extract" and get_settings().extraction_provider == "openai":
+        with SessionLocal() as db:
+            version = db.get(PostVersion, p["version_id"])
+            if not version or not version.caption or aware(version.retention_until) <= utcnow():
+                raise CapabilityError("Source content expired.", "source_expired")
+            if db.get(SourcePost, version.post_id).access_state == "removed":
+                raise CapabilityError("Source was removed.", "source_removed")
+            caption = version.caption
+            keys = list(
+                db.scalars(
+                    select(MediaAsset.storage_key)
+                    .join(PostMedia, PostMedia.media_id == MediaAsset.id)
+                    .where(PostMedia.version_id == version.id, MediaAsset.state == "ready")
+                    .order_by(PostMedia.position)
+                    .limit(4)
+                )
+            )
+            total = len(list(db.scalars(select(PostMedia.id).where(PostMedia.version_id == version.id))))
+            pending = db.scalar(
+                select(MediaAsset.id)
+                .join(PostMedia, PostMedia.media_id == MediaAsset.id)
+                .where(PostMedia.version_id == version.id, MediaAsset.state == "pending")
+                .limit(1)
+            )
+        if pending:
+            raise CapabilityError("Waiting for source images to finish preparation.", "media_pending", True, 30)
+        from .providers import structured_extract
+        from .storage import get_media_bytes
+
+        result, cost = structured_extract(caption, [get_media_bytes(key) for key in keys if key])
+        if total > len(keys):
+            result.warnings.append(f"Only {len(keys)} of {total} media items analyzed.")
+        return result, cost
+    if job.kind == "prepare-media":
+        with SessionLocal() as db:
+            asset = db.get(MediaAsset, p["media_id"])
+            if not asset or asset.state == "removed":
+                return None
+            url = asset.source_url
+        from .media import download_media, save_media
+
+        content = download_media(url)
+        with SessionLocal() as db:
+            guard(db, lease)
+            db.commit()
+        key, _, metadata = save_media(content)
+        return key, metadata
+    if job.kind == "embed-image":
+        with SessionLocal() as db:
+            asset = db.get(MediaAsset, p["media_id"])
+            key = asset.storage_key if asset and asset.state == "ready" else None
+        if not key:
+            return None
+        from .storage import get_media_bytes
+        from .vision import image_embedding
+
+        return image_embedding(get_media_bytes(key))
+    if job.kind == "embed-text":
+        with SessionLocal() as db:
+            listing = db.get(Listing, p["listing_id"])
+            text_input = (
+                listing.search_text if listing and listing.state == "published" and not listing.is_demo else None
+            )
+        return list(_live_text_vector(text_input, get_settings().embedding_model)) if text_input else None
+    return None
+
+
+def run_once(kinds=None):
+    from .leases import claim, guard, keep_alive
+    from .model_calls import CallScope, call_scope, microusd
+
+    lease = claim(SessionLocal, kinds)
+    if not lease:
         return False
     try:
-        with SessionLocal() as db:
-            job = db.get(Job, job_id)
-            job.result = handle_job(db, job)
-            job.state, job.lease_until, job.last_error = "succeeded", None, None
-            db.commit()
+        with (
+            keep_alive(lease, SessionLocal),
+            call_scope(CallScope(f"job:{lease.job_id}", microusd(get_settings().offer_budget_usd), lease=lease)),
+        ):
+            with SessionLocal() as db:
+                job = guard(db, lease)
+                db.expunge(job)
+                db.commit()
+            prepared = prepare_external(job, lease)
+            with SessionLocal() as db:
+                current = guard(db, lease)
+                current.result = prepared if current.kind == "delete-media" else handle_job(db, current, prepared)
+                current.state, current.lease_until, current.lease_token, current.last_error = (
+                    "succeeded",
+                    None,
+                    None,
+                    None,
+                )
+                db.commit()
     except Exception as exc:
-        with SessionLocal() as db:
-            job = db.get(Job, job_id)
-            retryable = isinstance(exc, CapabilityError) and exc.retryable
-            job.last_error = (
-                str(exc)[:500]
-                if isinstance(exc, (CapabilityError, ValueError))
-                else "Processing failed. Inspect server logs using the job ID."
-            )
-            if retryable and job.attempts < 5:
-                delay = exc.retry_after or [60, 300, 1800, 7200][min(job.attempts - 1, 3)]
-                job.state = "queued"
-                job.run_after = utcnow() + timedelta(seconds=delay + random.uniform(0, 10))
-            else:
-                job.state = "failed"
-            job.lease_until = None
-            db.commit()
-        logger.error("job_failed job_id=%s type=%s", job_id, type(exc).__name__)
+        try:
+            with SessionLocal() as db:
+                current = guard(db, lease)
+                retryable = isinstance(exc, CapabilityError) and exc.retryable
+                current.last_error = (
+                    str(exc)[:500] if isinstance(exc, CapabilityError) else "Processing failed; inspect the job ID."
+                )
+                if isinstance(exc, CapabilityError) and exc.code in {"call_replay_required", "call_expired"}:
+                    current.state = "paused"
+                elif retryable and current.attempts < 5:
+                    delay = exc.retry_after or [60, 300, 1800, 7200][min(current.attempts - 1, 3)]
+                    current.state = "queued"
+                    current.run_after = utcnow() + timedelta(seconds=delay + random.uniform(0, 10))
+                else:
+                    current.state = "failed"
+                current.lease_until, current.lease_token = None, None
+                db.commit()
+        except CapabilityError:
+            pass  # A replacement or cancellation owns the result now.
+        logger.error("job_failed job_id=%s type=%s", lease.job_id, type(exc).__name__)
     return True
 
 

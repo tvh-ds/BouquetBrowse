@@ -92,3 +92,19 @@ def test_fresh_upgrade_downgrade_upgrade(tmp_path):
             db.flush()
             assert db.scalar(select(OfferOccurrence)) is not None
     engine.dispose()
+
+
+def test_runtime_migration_round_trip(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'runtime.db'}")
+    revisions = [
+        revision(name) for name in ["20261023_0001_initial", "20261029_0002_conversations", "20261029_0003_runtime"]
+    ]
+    with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
+        for item in revisions:
+            item.upgrade()
+        assert "model_calls" in inspect(connection).get_table_names()
+        assert "lease_token" in {column["name"] for column in inspect(connection).get_columns("jobs")}
+        for item in reversed(revisions):
+            item.downgrade()
+        assert not inspect(connection).get_table_names()
+    engine.dispose()
