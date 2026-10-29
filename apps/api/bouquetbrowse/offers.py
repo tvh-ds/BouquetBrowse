@@ -17,7 +17,7 @@ from .conversation_models import (
 from .conversations import anchor_quote, ensure_occurrence
 from .db import aware, utcnow
 from .executions import create_execution
-from .extraction import extract_caption, extract_prices, fold
+from .extraction import FLOWERS, extract_caption, extract_prices, fold
 from .models import (
     Listing,
     ListingRevision,
@@ -45,6 +45,15 @@ BUYER_WORDS = re.compile(
 HANOI = re.compile(r"\b(?:ha noi|hanoi)\b")
 SERVICE = re.compile(r"(?:giao|ship|delivery|phuc vu|service|dia chi|address|shop|tiem|florist|tai|o)\b")
 AFFIRM = re.compile(r"^(?:da[ ,.!]*|vang[ ,.!]*|yes[ ,.!]*|dung(?: roi)?[ ,.!]*|chinh xac[ ,.!]*)$", re.I)
+
+
+def component_count(text, flower):
+    pattern = FLOWERS.get(flower)
+    if not pattern:
+        return None
+    matches = list(re.finditer(r"\b(\d{1,4})\s*(?:(?:cành|bông|stems?)\s*)?(?:" + pattern + r")", text, re.I))
+    values = {int(match[1]) for match in matches}
+    return values.pop() if len(values) == 1 else None
 
 
 def seller_language(text):
@@ -356,7 +365,13 @@ def validate_interpretation(db, offer, result: OfferInterpretation):
         if field.field in {"ownership", "location"}:
             continue
         if field.derivation == "seller_confirmation":
-            if len(field.evidence) != 2 or field.field not in {"stem_count", "lead_days", "delivery", "flower"}:
+            if len(field.evidence) != 2 or field.field not in {
+                "stem_count",
+                "flower_count",
+                "lead_days",
+                "delivery",
+                "flower",
+            }:
                 raise ValueError("Unsupported seller-confirmation derivation")
             question, answer = field.evidence
             q, a = by_version.get(question.version_id), by_version.get(answer.version_id)
@@ -386,9 +401,30 @@ def validate_interpretation(db, offer, result: OfferInterpretation):
             ):
                 raise ValueError("Negated seller claims require review")
             parsed = extract_caption(" ".join(r["quote"] for r in refs))
-        expected = (
-            parsed.flower_composition.value or [] if field.field == "flower" else getattr(parsed, field.field).value
-        )
+        if field.field == "flower_count":
+            if not field.flower or field.flower not in (parsed.flower_composition.value or []):
+                raise ValueError("Component counts require a supported flower type")
+            expected = component_count(
+                question.quote if field.derivation == "seller_confirmation" else " ".join(ref["quote"] for ref in refs),
+                field.flower,
+            )
+        else:
+            expected = (
+                parsed.flower_composition.value or [] if field.field == "flower" else getattr(parsed, field.field).value
+            )
+        if field.field == "stem_count" and not re.search(
+            r"(?:total|tong|stems?\b|canh\b)", fold(" ".join(ref["quote"] for ref in refs))
+        ):
+            raise ValueError("A flower component count is not a bouquet total")
+        if (
+            field.field == "stem_count"
+            and any(
+                len(extract_caption(by_version[ref["version_id"]]["text"]).flower_composition.value or []) > 1
+                for ref in refs
+            )
+            and not re.search(r"\b(?:total|tong)\b", fold(" ".join(ref["quote"] for ref in refs)))
+        ):
+            raise ValueError("Mixed bouquet totals require explicit total wording")
         if (
             field.value not in expected
             if field.field == "flower"
@@ -398,7 +434,7 @@ def validate_interpretation(db, offer, result: OfferInterpretation):
         claims.append(
             {
                 "field": field.field,
-                "value": {"value": field.value},
+                "value": {"value": field.value, **({"flower": field.flower} if field.field == "flower_count" else {})},
                 "evidence": refs,
                 "status": "stated",
                 "derivation": field.derivation,
@@ -444,6 +480,30 @@ def validate_interpretation(db, offer, result: OfferInterpretation):
             )
     if len({(p["amount_min"], p["amount_max"], p["currency"]) for p in prices}) > 1:
         errors.append("conflicting_prices")
+    composition = []
+    for claim in claims:
+        if claim["field"] in {"flower", "flower_count"}:
+            flower = claim["value"].get("flower") or claim["value"]["value"]
+            component = next((c for c in composition if c["flower"] == flower), None)
+            if component is None:
+                component = {
+                    "flower": flower,
+                    "status": "stated",
+                    "evidence_refs": [],
+                    "media_refs": [],
+                    "stated_count": None,
+                    "alternatives": [],
+                    "review_state": "pending",
+                    "supported": True,
+                }
+                composition.append(component)
+            component["evidence_refs"].extend(claim["evidence"])
+            if claim["field"] == "flower_count":
+                if component["stated_count"] not in {None, claim["value"]["value"]}:
+                    errors.append("conflicting_component_counts")
+                    component["status"] = "conflict"
+                else:
+                    component["stated_count"] = claim["value"]["value"]
     return {
         "claims": claims,
         "prices": prices,
@@ -451,7 +511,7 @@ def validate_interpretation(db, offer, result: OfferInterpretation):
         "location": location,
         "errors": sorted(set(errors)),
         "warnings": result.warnings,
-        "composition": [],
+        "composition": composition,
     }
 
 
@@ -491,7 +551,9 @@ def commit_offer(db, offer, execution, output):
         for c in output["claims"]
         if c["field"] in {"arrangement", "color", "stem_count"}
     }
-    flowers = sorted({c["value"]["value"] for c in output["claims"] if c["field"] == "flower"})
+    flowers = sorted(
+        {c["flower"] for c in output.get("composition", []) if c.get("supported") and not c.get("alternatives")}
+    )
     fields["primary_flower"] = "mixed" if len(flowers) > 1 else next(iter(flowers), None)
     if not listing:
         listing = Listing(

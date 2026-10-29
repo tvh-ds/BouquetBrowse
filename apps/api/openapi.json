@@ -2332,6 +2332,7 @@
               "arrangement",
               "color",
               "stem_count",
+              "flower_count",
               "lead_days",
               "delivery",
               "flower",
@@ -2353,6 +2354,18 @@
               }
             ],
             "title": "Value"
+          },
+          "flower": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flower"
           },
           "evidence": {
             "items": {

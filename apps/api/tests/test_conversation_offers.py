@@ -123,7 +123,8 @@ def test_confirmation_keeps_both_versions_and_rejects_compound_question(db):
     result = interpretation(db, "root")
     result.fields = [
         OfferField(
-            field="stem_count",
+            field="flower_count",
+            flower="rose",
             value=20,
             derivation="seller_confirmation",
             evidence=[reference(db, "q", "20 roses?"), reference(db, "answer", "Yes!")],

@@ -898,6 +898,7 @@ export interface components {
         | "arrangement"
         | "color"
         | "stem_count"
+        | "flower_count"
         | "lead_days"
         | "delivery"
         | "flower"
@@ -905,6 +906,8 @@ export interface components {
         | "ownership";
       /** Value */
       value: string | number | boolean;
+      /** Flower */
+      flower?: string | null;
       /** Evidence */
       evidence: components["schemas"]["QuoteReference"][];
       /**

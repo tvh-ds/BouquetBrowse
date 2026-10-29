@@ -1,0 +1,15 @@
+# Mixed-bouquet recognition evaluation
+
+The application has recognition and evaluation tooling, not measured flower-domain accuracy. Live capture, model calls and weight downloads are deferred until the user's explicit test command. All current test images and judgments are synthetic.
+
+Production uses relevant conversation text jointly with images, at most four images per request, two original chunks and one bounded regional recheck. Seller statements and visual observations stay separate. Named component counts never become bouquet totals. SigLIP scores are auxiliary and uncalibrated; an anomaly may request a recheck, never establish a label. The pinned [Google model](https://huggingface.co/google/siglip2-base-patch16-224) revision is `75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2`; weights stay outside Git. Runtime image preparation is versioned as `jpeg-1200-v1`.
+
+Store real images, annotation exports and reports under ignored `.data/evaluation/` or outside this public repository. Each JSONL judgment contains `image_id`, SHA-256 `checksum`, `seller_group`, `image_family`, `split` (`development` or `holdout`), visible `labels`, explicitly `assessable` categories, `joint_predictions`, `image_only_predictions`, independent `reviewers`, `latency_ms` and integer `cost_microusd`. Empty predictions represent abstention. An unassessable category is excluded, not counted as absent.
+
+Run `uv run --project apps/api python -m bouquetbrowse.cli evaluate-images --input .data/evaluation/judgments.jsonl --output .data/evaluation/report.json --configuration-hash CONFIGURATION_SHA256 --dataset-kind permitted_real`. This command only calculates metrics from annotations; it never calls models or enables publication. Configuration hashes include models, prompts, schema, taxonomy, preprocessing and auxiliary CV revision. Image-only model requests omit the conversation and cannot produce a commercial interpretation.
+
+The dataset gate requires at least 100 distinct images, at least 60 development / 40 holdout, no seller or reused-image-family leakage, and at least 20% double review. Category support additionally needs 20 positive/20 negative assessable examples overall and ten of each in holdout, observed holdout precision at least 95% and recall at least 80%. Reports include confusion counts, Wilson intervals, coverage, cost and latency. Synthetic datasets cannot satisfy the release gate. Under-sampled/failing categories stay tentative; successful pilot results are not a universal accuracy guarantee.
+
+Actual human annotations and configuration-matched approval are required before support is installed. The separate twenty-conversation proof also remains necessary before provisional publication. Do not relabel fixture success as live validation.
+
+Sources: [OpenAI structured output contracts](https://developers.openai.com/api/docs/guides/structured-outputs), [Luna model](https://developers.openai.com/api/docs/models/gpt-6-luna), [Sol model](https://developers.openai.com/api/docs/models/gpt-6.1-sol). Schema conformance does not establish factual accuracy.
