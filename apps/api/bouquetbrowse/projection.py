@@ -42,7 +42,14 @@ def seller_fact(db, offer, field, value, evidence):
     )
     if existing:
         return
-    version = db.get(PostVersion, evidence["version_id"])
+    from .browser_models import ProfileSnapshot
+
+    profile = (
+        db.get(ProfileSnapshot, evidence.get("profile_snapshot_id")) if evidence.get("profile_snapshot_id") else None
+    )
+    version = db.get(PostVersion, evidence["version_id"]) if evidence.get("version_id") else None
+    if not profile and not version:
+        raise ValueError("Seller facts require retained source evidence")
     db.add(
         SellerFact(
             seller_id=offer.seller_id,
@@ -50,17 +57,17 @@ def seller_fact(db, offer, field, value, evidence):
             value={"value": value},
             evidence_key=key,
             evidence=evidence,
-            retention_until=version.retention_until,
+            retention_until=(profile or version).retention_until,
         )
     )
-    source = db.get(SourcePost, version.post_id)
+    source = db.get(SourcePost, version.post_id) if version else None
     change(
         db,
         f"seller:{offer.seller_id}:{field}:{key}",
         "seller_update",
         seller_id=offer.seller_id,
-        source_url=source.url,
-        advertised_at=source.published_at,
+        source_url=source.url if source else profile.source_url,
+        advertised_at=source.published_at if source else None,
         details={"field": field, "value": value},
     )
 

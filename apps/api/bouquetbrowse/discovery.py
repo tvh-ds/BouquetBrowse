@@ -1,8 +1,8 @@
 """Application-owned discovery frontier and graph services."""
 
 import base64
-from datetime import timedelta
-from urllib.parse import urlsplit
+from datetime import UTC, timedelta
+from urllib.parse import parse_qs, urlsplit
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -17,7 +17,7 @@ from .db import aware, utcnow
 from .executions import pinned_execution
 from .leases import guard
 from .model_calls import CallScope, call_scope, invoke_once
-from .models import PostVersion, SourceAccount
+from .models import PostVersion, SourceAccount, SourcePost
 from .pipeline import digest
 from .providers import CapabilityError, billed_amount
 from .runtime_models import ActionReceipt, DiscoveryFrontier, DiscoverySettings, ExecutionEvent, GraphExecution
@@ -75,17 +75,26 @@ def seed_frontier(db):
 
 def select_frontier(db, execution):
     now = utcnow()
-    rows = list(
-        db.scalars(
-            select(DiscoveryFrontier)
-            .where(DiscoveryFrontier.due_at <= now, DiscoveryFrontier.state == "due")
-            .order_by(DiscoveryFrontier.due_at, DiscoveryFrontier.id)
-            .limit(100)
+    rows = []
+    # A busy refresh queue must not hide discovery/FYP beyond a global LIMIT.
+    for queue_name in WEIGHTS:
+        rows.extend(
+            db.scalars(
+                select(DiscoveryFrontier)
+                .where(
+                    DiscoveryFrontier.due_at <= now,
+                    DiscoveryFrontier.state == "due",
+                    DiscoveryFrontier.queue == queue_name,
+                )
+                .order_by(DiscoveryFrontier.due_at, DiscoveryFrontier.id)
+                .limit(100)
+            )
         )
-    )
     if not rows:
         return None
-    today = now.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")).replace(hour=0, minute=0, second=0, microsecond=0)
+    today = (
+        now.astimezone(ZoneInfo("Asia/Ho_Chi_Minh")).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(UTC)
+    )
     efforts = {q: 0 for q in WEIGHTS}
     for prior in db.scalars(
         select(GraphExecution).where(GraphExecution.kind == "discovery", GraphExecution.created_at >= today)
@@ -96,7 +105,29 @@ def select_frontier(db, execution):
     available = {r.queue for r in rows} & set(WEIGHTS)
     queue = min(available, key=lambda q: (efforts[q] / WEIGHTS[q], q)) if available else rows[0].queue
     candidates = [r for r in rows if r.queue == queue]
-    row = min(candidates, key=lambda r: (not bool(r.evidence_gaps), aware(r.due_at), r.recent_yield, r.id))
+    covered = set(
+        db.scalars(
+            select(SourceAccount.username)
+            .join(SourcePost, SourcePost.account_id == SourceAccount.id)
+            .where(SourceAccount.seller_id.is_not(None), SourcePost.last_seen_at >= today)
+        )
+    )
+
+    def priority(row):
+        username = urlsplit(row.target).path.strip("/").split("/")[0].removeprefix("@")
+        # Age buckets preserve overdue work while diversifying similarly overdue sellers.
+        overdue_days = int((now - aware(row.due_at)).total_seconds() // 86400)
+        return (
+            not bool(row.evidence_gaps),
+            -overdue_days,
+            username in covered,
+            row.last_checked_at is not None,
+            -row.recent_yield,
+            aware(row.due_at),
+            row.id,
+        )
+
+    row = min(candidates, key=priority)
     row.continuation = {**row.continuation, "execution_id": execution.id}
     return row
 
@@ -278,9 +309,26 @@ class DiscoveryServices:
                 from .offers import segment_capture
 
                 offers = segment_capture(db, state["capture_id"], execution.configuration)
-                from .seller_profiles import project_business_capture
+                from .seller_profiles import project_business_capture, project_profile_snapshot
 
                 project_business_capture(db, state["capture_id"], execution.configuration)
+                observation = db.get(BrowserObservation, state.get("observation_id"))
+                if observation and observation.snapshot.get("profile_snapshot_id"):
+                    project_profile_snapshot(db, observation.snapshot["profile_snapshot_id"], execution.configuration)
+                frontier = db.get(DiscoveryFrontier, state["frontier_id"])
+                seen = set(frontier.continuation.get("yield_versions", []))
+                current = set(
+                    db.scalars(select(CaptureMember.version_id).where(CaptureMember.capture_id == state["capture_id"]))
+                )
+                if frontier.continuation.get("yield_execution") != execution.id:
+                    seen = set()
+                seen.update(current)
+                frontier.recent_yield = len(seen)
+                frontier.continuation = {
+                    **frontier.continuation,
+                    "yield_execution": execution.id,
+                    "yield_versions": sorted(seen),
+                }
                 db.add(
                     ExecutionEvent(
                         execution_id=execution.id,
@@ -414,6 +462,10 @@ class DiscoveryServices:
                 receipt = db.get(ActionReceipt, receipt_id)
                 receipt.capture_id, receipt.state = observation.capture_id, "completed"
                 receipt.continuation = {"observation_id": observation.id, "url": view["url"]}
+                if self.action.action == "search" and parse_qs(urlsplit(view["url"]).query).get("q") == parse_qs(
+                    urlsplit(search_url(self.action.query)).query
+                ).get("q"):
+                    add_frontier(db, "search", self.action.query, origin="planner")
                 progress = execution.progress
                 execution.progress = {**progress, "actions": progress.get("actions", 0) + 1, "resume_url": view["url"]}
                 db.commit()
