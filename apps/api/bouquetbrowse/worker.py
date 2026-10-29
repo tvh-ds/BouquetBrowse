@@ -171,9 +171,15 @@ def handle_job(db, job, prepared=None):
         return {"embedded": True, "model": model}
     if job.kind == "embed-text":
         listing = db.get(Listing, p["listing_id"])
-        if not listing or listing.state != "published" or listing.is_demo or prepared is None:
+        if (
+            not listing
+            or listing.state not in {"published", "provisional"}
+            or listing.current_revision_id != p["revision_id"]
+            or listing.is_demo
+            or prepared is None
+        ):
             return {"skipped": True}
-        model = get_settings().embedding_model
+        model = p.get("model", get_settings().embedding_model)
         if not db.scalar(
             select(TextEmbedding.id).where(
                 TextEmbedding.revision_id == p["revision_id"], TextEmbedding.model_version == model
@@ -359,9 +365,16 @@ def prepare_external(job, lease):
         with SessionLocal() as db:
             listing = db.get(Listing, p["listing_id"])
             text_input = (
-                listing.search_text if listing and listing.state == "published" and not listing.is_demo else None
+                listing.search_text
+                if listing
+                and listing.state in {"published", "provisional"}
+                and listing.current_revision_id == p["revision_id"]
+                and not listing.is_demo
+                else None
             )
-        return list(_live_text_vector(text_input, get_settings().embedding_model)) if text_input else None
+        return (
+            list(_live_text_vector(text_input, p.get("model", get_settings().embedding_model))) if text_input else None
+        )
     return None
 
 

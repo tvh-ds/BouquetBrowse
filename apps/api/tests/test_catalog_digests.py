@@ -69,6 +69,45 @@ def test_closed_gate_does_not_publish_validated_fixture(db):
     assert not list(db.scalars(select(CatalogChange)))
 
 
+def test_published_provisional_revision_queues_semantic_index_once(db, monkeypatch):
+    from bouquetbrowse.config import Settings
+    from bouquetbrowse.models import Job
+
+    offer, execution, analysis = completed_offer(db)
+    monkeypatch.setattr("bouquetbrowse.projection.publication_ready", lambda *args: True)
+    monkeypatch.setattr(
+        "bouquetbrowse.config.get_settings", lambda: Settings(openai_api_key="fictional-test-only", _env_file=None)
+    )
+    assert project_offer(db, offer, execution, analysis)
+    assert project_offer(db, offer, execution, analysis)
+    db.flush()
+    jobs = list(db.scalars(select(Job).where(Job.kind == "embed-text")))
+    assert len(jobs) == 1 and jobs[0].payload["revision_id"] == analysis.revision_id
+
+
+def test_similarity_uses_selected_offer_media_and_never_a_whole_collage_for_a_crop(db, monkeypatch):
+    from bouquetbrowse.catalog import selected_image_vectors
+    from bouquetbrowse.models import ImageEmbedding, ListingRevision, PostMedia, SourcePost
+
+    offer, execution, analysis = completed_offer(db)
+    monkeypatch.setattr("bouquetbrowse.projection.publication_ready", lambda *args: True)
+    project_offer(db, offer, execution, analysis)
+    listing = db.get(Listing, offer.listing_id)
+    revision = db.get(ListingRevision, listing.current_revision_id)
+    own_id = revision.snapshot["media_ids"][0]
+    buyer_version = db.scalar(select(PostVersion).join(SourcePost).where(SourcePost.platform_post_id == "buyer"))
+    buyer_asset = MediaAsset(state="ready", checksum="b" * 64)
+    db.add(buyer_asset)
+    db.flush()
+    db.add(PostMedia(version_id=buyer_version.id, media_id=buyer_asset.id, position=0))
+    for media_id in [own_id, buyer_asset.id]:
+        db.add(ImageEmbedding(media_id=media_id, model_version="fictional", vector=[0.1] * 768))
+    db.flush()
+    assert {v.media_id for v in selected_image_vectors(db, [listing])[listing.id]} == {own_id}
+    revision.snapshot = {**revision.snapshot, "media_regions": {own_id: [0, 0, 0.5, 1]}}
+    assert listing.id not in selected_image_vectors(db, [listing])
+
+
 def test_provisional_browsing_history_composition_and_buyer_privacy(db, client, tester_headers, monkeypatch):
     offer, execution, analysis = completed_offer(db)
     monkeypatch.setattr("bouquetbrowse.projection.publication_ready", lambda *args: True)

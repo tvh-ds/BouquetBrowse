@@ -202,6 +202,17 @@ def project_offer(db, offer, execution, analysis):
         "description": listing.description,
     }
     listing.current_revision_id, offer.state = revision.id, "published"
+    from .config import get_settings
+    from .pipeline import enqueue
+
+    settings = get_settings()
+    if settings.openai_api_key and not listing.is_demo:
+        enqueue(
+            db,
+            "embed-text",
+            {"listing_id": listing.id, "revision_id": revision.id, "model": settings.embedding_model},
+            f"text:{revision.id}:{settings.embedding_model}",
+        )
     if initial:
         change(db, f"new:{offer.id}", "new_offer", listing.id, offer.seller_id, anchor.url, anchor.published_at)
     elif price_ids != old_prices and valid_prices:

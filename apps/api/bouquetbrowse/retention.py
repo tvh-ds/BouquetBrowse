@@ -158,6 +158,10 @@ def scrub_versions(db, version_ids, reason="expired", listing_ids=None):
             or job.payload.get("listing_id") in listings
             or job.payload.get("execution_id") in executions
         ):
+            for call in db.scalars(select(ModelCall).where(ModelCall.job_id == job.id)):
+                call.result, call.usage, call.state, call.replay_authorized = None, {}, "removed", False
+            if job.kind not in {"purge", "retention"}:
+                cancel(db, job.id)
             job.payload, job.result, job.last_error = {}, {"removed": True}, None
 
 
@@ -209,6 +213,9 @@ def receipt_permitted(db, call):
             return False
     if call.job_id:
         job = db.get(Job, call.job_id)
+        listing = db.get(Listing, job.payload.get("listing_id")) if job and job.payload.get("listing_id") else None
+        if listing and listing.state == "withdrawn":
+            return False
         version = db.get(PostVersion, job.payload.get("version_id")) if job and job.payload.get("version_id") else None
         if version and (
             aware(version.retention_until) <= utcnow() or db.get(SourcePost, version.post_id).access_state == "removed"

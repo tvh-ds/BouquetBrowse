@@ -161,6 +161,32 @@ def test_image_only_call_without_offer_is_scrubbed_through_media_dependency(db):
     assert db.scalar(select(ModelCall)).result is None
 
 
+def test_non_graph_embedding_job_receipt_is_removed_with_its_listing(db):
+    from bouquetbrowse.leases import claim
+    from bouquetbrowse.model_calls import CallScope, call_scope, invoke_once
+    from bouquetbrowse.pipeline import enqueue
+    from bouquetbrowse.providers import CapabilityError
+    from bouquetbrowse.runtime_models import ModelCall
+
+    offer, execution, analysis = completed_offer(db)
+    enqueue(
+        db, "embed-text", {"listing_id": offer.listing_id, "revision_id": analysis.revision_id}, "fictional-vector-race"
+    )
+    db.commit()
+    lease = claim(kinds=["embed-text"])
+
+    def fake_in_flight():
+        purge_listing(db, offer.listing_id)
+        db.commit()
+        return {"vector": [0.1]}, {}, 0.001
+
+    with call_scope(CallScope("legacy-vector-deletion", 100000, lease=lease)):
+        with pytest.raises(CapabilityError, match="deleted"):
+            invoke_once("fictional", {"text_hash": "fictional"}, fake_in_flight, 0.01)
+    db.expire_all()
+    assert db.scalar(select(ModelCall)).result is None
+
+
 def test_sqlite_backup_restore_replays_later_deletion_before_reading(db, tmp_path):
     # A content recovery exercise uses a private fictional snapshot, never the user's DB.
     import sqlite3
