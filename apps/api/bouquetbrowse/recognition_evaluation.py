@@ -29,8 +29,13 @@ class ImageJudgment(StrictModel):
     def valid_labels(self):
         if set(self.labels) - set(self.assessable):
             raise ValueError("Visible labels must be assessable")
-        if (set(self.assessable) | set(self.joint_predictions) | set(self.image_only_predictions)) - set(FLOWERS):
-            raise ValueError("Evaluate curated flower categories only")
+        import re
+
+        if any(
+            not re.fullmatch(r"[a-z][a-z0-9-]{0,79}", value)
+            for value in [*self.assessable, *self.joint_predictions, *self.image_only_predictions]
+        ):
+            raise ValueError("Invalid flower category key")
         return self
 
 
@@ -64,10 +69,16 @@ def category_metrics(rows, flower, prediction_field):
     }
 
 
-def evaluate_images(values, configuration_hash, dataset_kind="synthetic"):
+def evaluate_images(values, configuration_hash, dataset_kind="synthetic", categories=None):
     if dataset_kind not in {"synthetic", "permitted_real"}:
         raise ValueError("Record the dataset provenance explicitly")
     rows = [ImageJudgment.model_validate(value) for value in values]
+    category_keys = set(categories or FLOWERS)
+    if any(
+        (set(row.assessable) | set(row.joint_predictions) | set(row.image_only_predictions)) - category_keys
+        for row in rows
+    ):
+        raise ValueError("Evaluate curated flower categories only")
     ids, checksums, groups = set(), set(), defaultdict(set)
     for row in rows:
         if row.image_id in ids or row.checksum in checksums:
@@ -89,7 +100,7 @@ def evaluate_images(values, configuration_hash, dataset_kind="synthetic"):
         and dataset_kind == "permitted_real"
     )
     categories = {}
-    for flower in FLOWERS:
+    for flower in sorted(category_keys):
         overall = category_metrics(rows, flower, "joint_predictions")
         joint = category_metrics(holdout, flower, "joint_predictions")
         image_only = category_metrics(holdout, flower, "image_only_predictions")

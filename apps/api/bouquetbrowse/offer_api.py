@@ -133,7 +133,9 @@ def decide(
         raise HTTPException(409, detail="Wait for the current interpretation attempt.")
     if analysis.state == "completed":
         raise HTTPException(409, detail="Completed revisions are immutable; request reprocessing.")
-    validated = validate_interpretation(db, offer, body.interpretation)
+    validated = validate_interpretation(
+        db, offer, body.interpretation, db.get(GraphExecution, analysis.execution_id).configuration
+    )
     if validated["errors"]:
         raise HTTPException(422, detail={"code": "evidence_unresolved", "errors": validated["errors"]})
     reviews = list(
@@ -171,18 +173,47 @@ def capture_detail(capture_id: str, db: Database):
     capture = db.get(ConversationCapture, capture_id)
     if not capture:
         raise HTTPException(404, detail="Capture not found.")
-    rows = db.scalars(
-        select(PostVersion)
-        .join(CaptureMember, CaptureMember.version_id == PostVersion.id)
-        .where(CaptureMember.capture_id == capture.id)
-        .limit(100)
+    rows = list(
+        db.scalars(
+            select(PostVersion)
+            .join(CaptureMember, CaptureMember.version_id == PostVersion.id)
+            .where(CaptureMember.capture_id == capture.id)
+            .limit(100)
+        )
     )
+    from .conversation_models import MessageEdge
+    from .db import aware
+    from .models import SourceAccount, SourcePost
+
+    post_ids = {v.post_id for v in rows}
     return {
         "id": capture.id,
         "coverage": capture.coverage,
         "stop_reason": capture.stop_reason,
+        "sorting": capture.sorting,
+        "remaining_expansions": capture.remaining_expansions,
+        "edges": [
+            {
+                "source_id": e.source_id,
+                "target_id": e.target_id,
+                "unresolved_platform_id": e.target_platform_id if not e.target_id else None,
+                "kind": e.kind,
+            }
+            for e in db.scalars(select(MessageEdge).where(MessageEdge.source_id.in_(post_ids)))
+        ],
+        "offers": [
+            {"id": o.id, "state": o.state, "seller_id": o.seller_id, "listing_id": o.listing_id}
+            for o in db.scalars(select(OfferOccurrence).where(OfferOccurrence.anchor_id.in_(post_ids)))
+        ],
         "messages": [
-            {"version_id": v.id, "post_id": v.post_id, "text": v.caption, "retention_until": v.retention_until}
+            {
+                "version_id": v.id,
+                "post_id": v.post_id,
+                "text": v.caption if aware(v.retention_until) > utcnow() else "",
+                "author": db.get(SourceAccount, db.get(SourcePost, v.post_id).account_id).username,
+                "published_at": db.get(SourcePost, v.post_id).published_at,
+                "retention_until": v.retention_until,
+            }
             for v in rows
         ],
     }

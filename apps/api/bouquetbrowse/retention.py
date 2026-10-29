@@ -171,10 +171,14 @@ def expire(db, now=None):
     for profile in expired_profiles:
         for fact in db.scalars(select(SellerFact)):
             if fact.evidence.get("profile_snapshot_id") == profile.id:
+                event = db.scalar(
+                    select(CatalogChange).where(
+                        CatalogChange.event_key == f"seller:{fact.seller_id}:{fact.field}:{fact.evidence_key}"
+                    )
+                )
+                if event:
+                    event.suppressed, event.details, event.source_url = True, {}, None
                 db.delete(fact)
-        for event in db.scalars(select(CatalogChange).where(CatalogChange.source_url == profile.source_url)):
-            if event.kind == "seller_update":
-                event.suppressed, event.details, event.source_url = True, {}, None
     versions = list(
         db.scalars(select(PostVersion.id).where(PostVersion.retention_until <= now, PostVersion.caption != ""))
     )
@@ -203,6 +207,20 @@ def expire(db, now=None):
         execution.state, execution.progress, execution.stop_reason = "withdrawn", {}, "retention"
         enqueue(db, "delete-checkpoints", {"execution_id": execution.id}, f"delete-checkpoints:{execution.id}")
     return {"expired_versions": len(versions)}
+
+
+def remove_profile(db, account_id):
+    from .models import SourceAccount
+
+    account = db.get(SourceAccount, account_id)
+    if not account:
+        raise ValueError("Profile account not found")
+    account.capabilities = {**account.capabilities, "profile_suppressed": True}
+    ledger(db, "profile", account_id, "takedown")
+    for profile in db.scalars(select(ProfileSnapshot).where(ProfileSnapshot.account_id == account_id)):
+        profile.text, profile.retention_until = "", utcnow()
+        profile.policy = {"removed": True}
+    expire(db)
 
 
 def delete_checkpoints(db, execution_id):

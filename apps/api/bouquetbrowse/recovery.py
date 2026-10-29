@@ -62,7 +62,7 @@ def replay_deletions(db, values):
         if set(value) != {"subject_kind", "subject_id", "reason"}:
             raise ValueError("Only content-free deletion records can be replayed")
         kind, subject, reason = value["subject_kind"], value["subject_id"], value["reason"]
-        if kind not in {"listing", "post"} or reason not in {"expired", "takedown"} or len(subject) > 36:
+        if kind not in {"listing", "post", "profile"} or reason not in {"expired", "takedown"} or len(subject) > 36:
             raise ValueError("Invalid deletion identity")
         ledger(db, kind, subject, reason)
         if kind == "listing" and db.get(Listing, subject):
@@ -70,5 +70,11 @@ def replay_deletions(db, values):
         elif kind == "post":
             versions = list(db.scalars(select(PostVersion.id).where(PostVersion.post_id == subject)))
             scrub_versions(db, versions, reason="takedown")
+        elif kind == "profile":
+            from .models import SourceAccount
+            from .retention import remove_profile
+
+            if db.get(SourceAccount, subject):
+                remove_profile(db, subject)
         count += 1
     return count

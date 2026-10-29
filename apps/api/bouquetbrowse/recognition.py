@@ -13,7 +13,6 @@ from . import db as database
 from .config import get_settings
 from .conversation_models import TaxonomyTerm
 from .db import aware, utcnow
-from .extraction import FLOWERS
 from .model_calls import invoke_once
 from .models import MediaAsset
 from .pipeline import digest
@@ -37,6 +36,13 @@ def configuration_hash(configuration):
         "siglip_revision",
     ]
     return digest({"behavior": BEHAVIOR_VERSION, **{key: configuration.get(key) for key in keys}})
+
+
+def taxonomy_labels(configuration):
+    from .taxonomy import vocabulary
+
+    with database.SessionLocal() as db:
+        return vocabulary(db, configuration.get("taxonomy_version", "flowers-v2"))
 
 
 def crop_image(content, bounds: RegionBounds):
@@ -118,6 +124,9 @@ def recognize_call(bundle, views, configuration, purpose="joint", stronger=False
     }
     key = digest(dependencies)
     with database.SessionLocal() as db:
+        from .taxonomy import vocabulary
+
+        taxonomy = vocabulary(db, configuration.get("taxonomy_version", "flowers-v2"))
         cached = db.scalar(select(RecognitionRecord).where(RecognitionRecord.cache_key == key))
         if cached and aware(cached.retention_until) > utcnow():
             return RecognitionResult.model_validate(cached.result)
@@ -129,7 +138,7 @@ def recognize_call(bundle, views, configuration, purpose="joint", stronger=False
             {
                 "type": "input_text",
                 "text": json.dumps(
-                    {"purpose": purpose, "conversation": context, "taxonomy": list(FLOWERS)}, ensure_ascii=False
+                    {"purpose": purpose, "conversation": context, "taxonomy": taxonomy}, ensure_ascii=False
                 ),
             }
         ]
@@ -220,9 +229,12 @@ def merge_components(db, stated, results, configuration, views):
     components = list(stated)
     config_hash = configuration_hash(configuration)
     taxonomy = configuration.get("taxonomy_version", "flowers-v2")
+    from .taxonomy import normalize
+
     for result in results:
         for observed in result.flowers:
-            if observed.flower not in FLOWERS:
+            canonical = normalize(db, observed.flower, taxonomy)
+            if canonical is None:
                 if not db.scalar(
                     select(TaxonomyTerm.id).where(
                         TaxonomyTerm.taxonomy_version == taxonomy, TaxonomyTerm.key == observed.flower
@@ -238,6 +250,7 @@ def merge_components(db, stated, results, configuration, views):
                         )
                     )
                 continue
+            observed = observed.model_copy(update={"flower": canonical})
             qualification = db.scalar(
                 select(RecognitionSupport).where(
                     RecognitionSupport.configuration_hash == config_hash,
@@ -314,7 +327,9 @@ def analyze_offer(bundle, configuration, call=recognize_call, cv=None):
             auxiliary.append(
                 {
                     "media_id": view["media_id"],
-                    "scores": scorer(view["bytes"], list(FLOWERS), configuration["siglip_revision"]),
+                    "scores": scorer(
+                        view["bytes"], list(taxonomy_labels(configuration)), configuration["siglip_revision"]
+                    ),
                     "calibrated": False,
                 }
             )

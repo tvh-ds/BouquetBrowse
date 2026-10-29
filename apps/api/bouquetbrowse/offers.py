@@ -47,8 +47,8 @@ SERVICE = re.compile(r"(?:giao|ship|delivery|phuc vu|service|dia chi|address|sho
 AFFIRM = re.compile(r"^(?:da[ ,.!]*|vang[ ,.!]*|yes[ ,.!]*|dung(?: roi)?[ ,.!]*|chinh xac[ ,.!]*)$", re.I)
 
 
-def component_count(text, flower):
-    pattern = FLOWERS.get(flower)
+def component_count(text, flower, patterns=None):
+    pattern = (patterns or FLOWERS).get(flower)
     if not pattern:
         return None
     matches = list(re.finditer(r"\b(\d{1,4})\s*(?:(?:cành|bông|stems?)\s*)?(?:" + pattern + r")", text, re.I))
@@ -365,7 +365,10 @@ def evidence_bundle(db, offer):
     }
 
 
-def validate_interpretation(db, offer, result: OfferInterpretation):
+def validate_interpretation(db, offer, result: OfferInterpretation, configuration=None):
+    from .taxonomy import flower_patterns
+
+    patterns = flower_patterns(db, (configuration or {}).get("taxonomy_version", "flowers-v2"))
     bundle = evidence_bundle(db, offer)
     by_version = {m["version_id"]: m for m in bundle["messages"]}
     errors, claims = [], []
@@ -458,15 +461,29 @@ def validate_interpretation(db, offer, result: OfferInterpretation):
             if not unique_structural_target(db, offer, target_id):
                 raise ValueError("Commercial claim target is ambiguous")
         if field.field == "flower_count":
-            if not field.flower or field.flower not in (parsed.flower_composition.value or []):
+            quote_text = (
+                question.quote if field.derivation == "seller_confirmation" else " ".join(ref["quote"] for ref in refs)
+            )
+            if (
+                not field.flower
+                or field.flower not in patterns
+                or not re.search(patterns[field.flower], quote_text, re.I)
+            ):
                 raise ValueError("Component counts require a supported flower type")
             expected = component_count(
                 question.quote if field.derivation == "seller_confirmation" else " ".join(ref["quote"] for ref in refs),
                 field.flower,
+                patterns,
             )
         else:
             expected = (
-                parsed.flower_composition.value or [] if field.field == "flower" else getattr(parsed, field.field).value
+                [
+                    key
+                    for key, pattern in patterns.items()
+                    if re.search(pattern, " ".join(ref["quote"] for ref in refs), re.I)
+                ]
+                if field.field == "flower"
+                else getattr(parsed, field.field).value
             )
         if field.field == "stem_count" and not re.search(
             r"(?:total|tong|stems?\b|canh\b)", fold(" ".join(ref["quote"] for ref in refs))
