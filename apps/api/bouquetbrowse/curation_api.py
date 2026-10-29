@@ -54,6 +54,7 @@ class TaxonomyDecision(StrictModel):
 class CanonicalDecision(StrictModel):
     offer_id: str
     expected_fingerprint: str
+    expected_links_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     configuration_id: str | None = None
     reason: str = Field(min_length=10, max_length=500)
 
@@ -61,6 +62,14 @@ class CanonicalDecision(StrictModel):
 class UnlinkDecision(StrictModel):
     expected_fingerprint: str
     reason: str = Field(min_length=10, max_length=500)
+
+
+def links_hash(db, offer_id):
+    return digest(
+        sorted(
+            fingerprint(link) for link in db.scalars(select(CanonicalLink).where(CanonicalLink.offer_id == offer_id))
+        )
+    )
 
 
 @router.post("/profiles/{account_id}/remove")
@@ -126,7 +135,13 @@ def canonical(db: Database):
             {"id": c.id, "seller_id": c.seller_id} for c in db.scalars(select(CanonicalConfiguration).limit(200))
         ],
         "offers": [
-            {"id": o.id, "seller_id": o.seller_id, "listing_id": o.listing_id, "fingerprint": o.input_fingerprint}
+            {
+                "id": o.id,
+                "seller_id": o.seller_id,
+                "listing_id": o.listing_id,
+                "fingerprint": o.input_fingerprint,
+                "links_hash": links_hash(db, o.id),
+            }
             for o in db.scalars(
                 select(OfferOccurrence)
                 .where(
@@ -164,8 +179,10 @@ def consolidate(body: CanonicalDecision, db: Database, actor: Actor, idempotency
         ):
             raise ValueError("Offer changed or is unavailable")
         evidence = {"actor": actor.id, "reason": body.reason, "offer_fingerprint": offer.input_fingerprint}
+        if links_hash(db, offer.id) != body.expected_links_hash:
+            raise ValueError("Canonical relationships changed; reload before linking")
         configuration = db.get(CanonicalConfiguration, body.configuration_id) if body.configuration_id else None
-        if body.configuration_id and not configuration:
+        if body.configuration_id and (not configuration or not configuration.evidence):
             raise ValueError("Configuration not found")
         if not configuration:
             configuration = CanonicalConfiguration(seller_id=offer.seller_id, evidence=evidence)

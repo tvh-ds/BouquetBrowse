@@ -51,6 +51,7 @@ def promote(db, term, version, aliases, actor, reason, canonical_key=None):
     if db.scalar(select(TaxonomyTerm.id).where(TaxonomyTerm.taxonomy_version == version)):
         raise ValueError("Taxonomy versions are immutable; choose a new version")
     values = vocabulary(db, term.taxonomy_version)
+    previous_aliases = {fold(a) for a in values.get(canonical_key, [])}
     aliases = sorted(set([term.key, *values.get(canonical_key, []), *aliases]))
     for alias in aliases:
         if not alias.strip() or len(alias) > 80 or any(c in alias for c in "\r\n\x00"):
@@ -78,7 +79,8 @@ def promote(db, term, version, aliases, actor, reason, canonical_key=None):
     # Future executions adopt this version. Existing executions and cached results remain pinned.
     settings.configuration = {**settings.configuration, "taxonomy_version": version}
     settings.version += 1
-    affected = reprocess_affected(db, aliases, version)
+    changed_aliases = [alias for alias in aliases if fold(alias) not in previous_aliases]
+    affected = reprocess_affected(db, changed_aliases, version) if changed_aliases else []
     term.evaluation = {**term.evaluation, "affected_offers": affected}
     return version
 

@@ -992,6 +992,8 @@ export interface components {
       offer_id: string;
       /** Expected Fingerprint */
       expected_fingerprint: string;
+      /** Expected Links Hash */
+      expected_links_hash: string;
       /** Configuration Id */
       configuration_id?: string | null;
       /** Reason */

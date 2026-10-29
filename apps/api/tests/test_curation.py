@@ -4,7 +4,7 @@ from sqlalchemy import select
 from test_conversation_offers import capture, interpretation, message, offer_for, reference
 
 from bouquetbrowse.conversation_models import CanonicalLink, TaxonomyTerm
-from bouquetbrowse.curation_api import fingerprint
+from bouquetbrowse.curation_api import fingerprint, links_hash
 from bouquetbrowse.discovery import settings_row
 from bouquetbrowse.models import Seller
 from bouquetbrowse.offer_contracts import OfferField
@@ -81,6 +81,7 @@ def test_canonical_links_are_audited_reversible_and_seller_bounded(client, db, a
     body = {
         "offer_id": a.id,
         "expected_fingerprint": a.input_fingerprint,
+        "expected_links_hash": links_hash(db, a.id),
         "reason": "Operator reviewed the same configuration",
     }
     result = client.post(
@@ -92,6 +93,12 @@ def test_canonical_links_are_audited_reversible_and_seller_bounded(client, db, a
             "/v1/admin/curation/canonical/link", json=body, headers={**admin_headers, "Idempotency-Key": "canonical"}
         ).json()
         == result.json()
+    )
+    assert (
+        client.post(
+            "/v1/admin/curation/canonical/link", json=body, headers={**admin_headers, "Idempotency-Key": "stale-link"}
+        ).status_code
+        == 409
     )
     foreign = {
         **body,

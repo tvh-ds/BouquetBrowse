@@ -2280,6 +2280,11 @@
             "type": "string",
             "title": "Expected Fingerprint"
           },
+          "expected_links_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Links Hash"
+          },
           "configuration_id": {
             "anyOf": [
               {
@@ -2303,6 +2308,7 @@
         "required": [
           "offer_id",
           "expected_fingerprint",
+          "expected_links_hash",
           "reason"
         ],
         "title": "CanonicalDecision"
