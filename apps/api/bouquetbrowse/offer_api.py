@@ -215,6 +215,7 @@ def capture_detail(capture_id: str, db: Database):
             .limit(100)
         )
     )
+    from .browser_models import ProfileSnapshot
     from .conversation_models import MessageEdge
     from .db import aware
     from .models import SourceAccount, SourcePost
@@ -245,6 +246,18 @@ def capture_detail(capture_id: str, db: Database):
                 "post_id": v.post_id,
                 "text": v.caption if aware(v.retention_until) > utcnow() else "",
                 "author": db.get(SourceAccount, db.get(SourcePost, v.post_id).account_id).username,
+                "account_id": db.get(SourcePost, v.post_id).account_id,
+                "profile_saved": bool(
+                    db.scalar(
+                        select(ProfileSnapshot.id)
+                        .where(
+                            ProfileSnapshot.account_id == db.get(SourcePost, v.post_id).account_id,
+                            ProfileSnapshot.retention_until > utcnow(),
+                            ProfileSnapshot.text != "",
+                        )
+                        .limit(1)
+                    )
+                ),
                 "published_at": db.get(SourcePost, v.post_id).published_at,
                 "retention_until": v.retention_until,
             }

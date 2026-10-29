@@ -88,6 +88,8 @@ The discovery hero is a two-column text/photo grid (1.25fr/1fr); below 600px it 
 
 Catalog and detail photographs use 4:5 frames. The hero uses 1:1.06 with an arched top, changing to 3:4 below 800px before hiding on phones. Comparison photos use 4:4.5. Comparison columns use an auto-fit grid with a 200px minimum and become two columns below 600px; they do not turn into stacked comparison tables. Detail and evidence grids become single-column below 600px. Operational tables retain horizontal overflow.
 
+Research operations extends the existing Studio with a workspace selector capped at 28rem and a heading paired with an outlined refresh action. Summary definitions use three columns; independent annotation fields use two. At 640px and below, headings, action rows, summaries and annotation columns stack; inspector padding reduces from 1.5rem to 1rem. Action groups wrap. Long evidence identifiers and source text wrap within their containers; proof tables retain local horizontal scrolling. Evidence images use contained 4:5 frames so inspection preserves the full source image.
+
 ## Elevation & Depth
 
 Cards are flat at rest; borders and soft surface tones provide structure. The fixed comparison tray is the deliberate lifted surface, using a shadow of 0 6px 34px #173a2d2b. The native filter dialog dims the page with a forest backdrop (rgb(23 58 45 / 35%)).
@@ -110,6 +112,12 @@ The frontmatter captures recurring radii: badges, buttons, search fields, image 
 
 **Catalog operations.** Admin tabs share forest selection, rounded forms and neutral rules. Summaries wrap, review forms become one column on phones and dense tables scroll horizontally. Preserve the same typography and palette while allowing task-appropriate density.
 
+**Research controls and evidence.** The admin-only Research & operations tab offers six workspaces: health, conversations, flower taxonomy, canonical configurations, evaluation and release proofs. Fine ruled rows lead into lightly bordered inspectors; native selects, textareas, multi-selects and disclosures keep evidence close to its next action. Research buttons and ordinary fields have a 44px minimum height; checkboxes use a smaller native control within a 44px label row. All retain the shared focus outline, botanical palette and inherited reduced-motion behavior. Loading and successful actions use status messages; failures use alerts, and busy actions disable their submit buttons. Empty, unknown, stale and unconfigured states carry explicit copy rather than implied success.
+
+**Research workflow continuity.** All six research panels remain mounted while the workspace selector changes, preserving local selection and unsaved forms during those changes. Adding an associated offer image opens the evaluation draft, avoids duplicate media and preserves malformed JSON with a correction alert. Workspace refresh updates evidence; health refreshes every 30 seconds while its workspace is active and the document is visible. Leaving the outer Research tab unmounts its state, so this is not durable draft storage. Taxonomy decisions, seller-scoped canonical links, independent annotations and proof attestations remain distinct actions with adjacent reasons or evidence. Full identifiers, relationships and report/configuration hashes use native disclosures rather than taking over the first viewport.
+
+**Seller summary.** Seller pages optionally show the localized observed summary, flower types and styles beside the existing identity and seller-stated details. Omit empty observation lists and retain the conditional fictional-seller notice. This extension was reviewed in code only; the research finish capture set does not establish its visual layout.
+
 ## Do's and Don'ts
 
 - **Do** preserve the pinned quiet botanical identity and original tagline.
@@ -117,6 +125,7 @@ The frontmatter captures recurring radii: badges, buttons, search fields, image 
 - **Do** retain 4:5 catalog imagery, two-column phone results, visible focus and reduced-motion behavior.
 - **Do** keep the named card/tray actions at 44px and essential phone catalog metadata at 12px.
 - **Do** condition fictional evidence labels on the underlying record, adjacent to its price or statistics.
+- **Do** distinguish staged, synthetic, under-sampled, unsupported and approved research evidence; controls must reflect the available capability and proof state.
 - **Don't** replace the code-led contract with an invented approved comp.
 - **Don't** visually conflate recommendations with qualified price benchmarks or imply that review verifies inventory.
 - **Don't** generalize scoped review evidence into a whole-application accessibility or visual certification.

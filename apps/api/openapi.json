@@ -2617,7 +2617,6 @@
             },
             "type": "array",
             "maxItems": 40,
-            "minItems": 1,
             "title": "Assessable"
           },
           "reviewers": {
@@ -5145,7 +5144,8 @@
             "type": "string",
             "enum": [
               "promote",
-              "reject"
+              "reject",
+              "rebase"
             ],
             "title": "Decision"
           },

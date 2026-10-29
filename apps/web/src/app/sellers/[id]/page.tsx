@@ -18,6 +18,12 @@ export default async function SellerPage({
       items: Listing[];
       recent_changes: Change[];
       facts: { field: string; value: { value: unknown } }[];
+      summary?: {
+        vi: string;
+        en: string;
+        observed_flower_types: string[];
+        observed_styles: string[];
+      };
     }>(`/v1/sellers/${id}`),
   ]);
   return (
@@ -31,6 +37,27 @@ export default async function SellerPage({
             {data.seller.district}, Hà Nội
           </p>
           <p>{data.seller.bio}</p>
+          {data.summary && (
+            <>
+              <p>{data.summary[lang]}</p>
+              {data.summary.observed_flower_types.length > 0 && (
+                <p>
+                  {lang === "vi"
+                    ? "Loài hoa được ghi nhận"
+                    : "Observed flower types"}
+                  : {data.summary.observed_flower_types.join(", ")}
+                </p>
+              )}
+              {data.summary.observed_styles.length > 0 && (
+                <p>
+                  {lang === "vi"
+                    ? "Phong cách được ghi nhận"
+                    : "Observed styles"}
+                  : {data.summary.observed_styles.join(", ")}
+                </p>
+              )}
+            </>
+          )}
           {data.seller.is_demo && (
             <p className="demo-note">
               {lang === "vi"

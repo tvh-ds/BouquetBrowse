@@ -134,6 +134,25 @@ def test_durable_evaluation_runs_both_paths_without_publication(client, db, monk
     assert not staged.json()["report"]["dataset_ready"]
 
 
+def test_unassessable_image_does_not_require_invented_reference_labels(client, db, monkeypatch, admin_headers):
+    dataset_row, item, _ = dataset(client, db, monkeypatch, admin_headers)
+    response = client.post(
+        f"/v1/admin/evaluations/{dataset_row.id}/items/{item.id}/annotation",
+        json={
+            "expected_version": item.version,
+            "labels": [],
+            "assessable": [],
+            "reviewers": ["fictional-reviewer"],
+            "split": "development",
+            "image_family": "fictional-family",
+        },
+        headers=admin_headers,
+    )
+    assert response.status_code == 200, response.text
+    db.expire_all()
+    assert db.get(EvaluationItem, item.id).assessable == []
+
+
 def test_crash_after_receipt_reuses_paid_work(client, db, monkeypatch, admin_headers):
     dataset_row, _, _ = dataset(client, db, monkeypatch, admin_headers)
     calls = fake_models(monkeypatch)

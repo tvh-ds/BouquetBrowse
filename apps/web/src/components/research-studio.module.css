@@ -1,0 +1,246 @@
+.studio {
+  margin-top: 2rem;
+}
+.heading,
+.rows > li {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+.heading h2 {
+  margin-top: 0;
+}
+.workspace {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 28rem;
+  margin: 1rem 0 2rem;
+}
+.panel h3 {
+  margin-top: 2rem;
+}
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  padding-block: 1.25rem;
+  border-block: 1px solid var(--line);
+}
+.summary dt,
+.muted {
+  color: var(--muted);
+}
+.summary dd {
+  margin: 0.5rem 0 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.rows {
+  padding: 0;
+  list-style: none;
+}
+.rows > li {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.rows p {
+  margin: 0.4rem 0 0;
+}
+.rows > li > div {
+  min-width: 0;
+}
+.rows > li > details {
+  max-width: 30rem;
+}
+.form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+.form label,
+.field {
+  display: grid;
+  gap: 0.5rem;
+}
+.form button {
+  justify-self: start;
+}
+.studio input,
+.studio select,
+.studio textarea {
+  min-width: 0;
+  max-width: 100%;
+  caret-color: var(--ink);
+  min-height: 44px;
+  padding: 0.75rem;
+  border: 1px solid #9ca99d;
+  border-radius: 9px;
+  background: var(--canvas);
+  color: var(--ink);
+}
+.studio button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 11px 19px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--ink);
+  color: var(--canvas);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.studio button:global(.outline) {
+  border-color: #9ca99d;
+  background: transparent;
+  color: var(--ink);
+}
+.studio button:hover:not(:disabled) {
+  background: #2c5140;
+  color: var(--canvas);
+}
+.studio button:global(.outline):hover:not(:disabled) {
+  background: var(--soft);
+  color: var(--ink);
+}
+.studio button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.studio select option:checked {
+  background: var(--ink);
+  color: var(--canvas);
+}
+.studio textarea {
+  width: 100%;
+  resize: vertical;
+}
+.studio select[multiple] {
+  min-height: 10rem;
+}
+.form .check {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+}
+.check input {
+  flex: 0 0 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  min-height: 1.25rem;
+  padding: 0;
+  margin: 0.2rem 0;
+  accent-color: var(--ink);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+.inspector {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.inspector > h3:first-child {
+  margin-top: 0;
+}
+.message {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.message h4 {
+  margin: 0;
+}
+.message blockquote {
+  margin: 1rem 0;
+  padding: 0;
+  border: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.wrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.images {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+.images figure {
+  margin: 0;
+  max-width: 18rem;
+}
+.images img,
+.annotationImage {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 4/5;
+  object-fit: contain;
+  background: var(--soft);
+  border-radius: 12px;
+}
+.images figcaption {
+  margin: 0.5rem 0 1rem;
+  color: var(--muted);
+}
+.table {
+  overflow-x: auto;
+  margin-top: 1.25rem;
+}
+.table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.table caption {
+  text-align: left;
+  margin-bottom: 0.75rem;
+}
+.table th,
+.table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.studio details {
+  margin-block: 1.25rem;
+}
+.studio summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding-block: 0.65rem;
+  text-underline-offset: 4px;
+}
+@media (max-width: 640px) {
+  .heading,
+  .rows > li {
+    flex-direction: column;
+  }
+  .summary,
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  .inspector {
+    padding: 1rem;
+  }
+  .rows > li > details {
+    width: 100%;
+  }
+}

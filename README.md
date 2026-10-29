@@ -38,6 +38,10 @@ The API starts and seeds the localhost demo. To process a single job: `uv run --
 
 ## Try the complete workflow
 
+The local Threads discovery flow is implemented separately from the manual importer: scheduled discovery graphs browse search, profiles, posts and replies; independent offer graphs combine retained conversation evidence and bouquet images. Collection, model credentials and recurring startup remain disabled until the user's live-test command and real-data release validation. See [Threads architecture](docs/THREADS-DISCOVERY.md), [completion record](docs/IMPLEMENTATION-COMPLETION.md) and [local runtime](docs/LOCAL-RECURRING-OPERATIONS.md).
+
+Studio → **Research & operations** connects health/alerts, conversation evidence, taxonomy review, same-seller canonical links, private image annotation/evaluation and release proofs. The existing **Threads discovery** tab controls bounded runs, frontier, associations, model-call replay and spending. Synthetic evaluations cannot qualify live publication. See [private evaluation workflow](docs/EVALUATION-WORKFLOW.md).
+
 For a real public post, open Studio → Import → **Collect a public post**. Paste a Threads post/share link or Instagram post URL, collect an editable draft, and complete its missing seller/date fields before importing. This anonymous HTML collector needs no API token; source access restrictions can still prevent collection. See [public-page collector](docs/PUBLIC-PAGE-COLLECTOR.md).
 
 1. Enter the catalog studio demo, open Import and edit the provided JSON. Explicitly set the content-use confirmation to true for your own permitted content.
