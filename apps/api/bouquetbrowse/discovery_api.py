@@ -39,6 +39,7 @@ class StatusView(StrictModel):
     settings_version: int
     postgres: bool
     model_configured: bool
+    model_provider: str
     browser_installed: bool
     release_gates: dict
     publication_enabled: bool
@@ -67,7 +68,8 @@ def status(db: Database):
         "paused": row.paused if row else True,
         "settings_version": row.version if row else 0,
         "postgres": db.bind.dialect.name == "postgresql",
-        "model_configured": bool(settings.openai_api_key),
+        "model_configured": settings.model_configured,
+        "model_provider": settings.model_provider,
         "browser_installed": find_spec("playwright") is not None,
         "release_gates": gates,
         "publication_enabled": gates["ready"],
@@ -97,8 +99,9 @@ def start_run(body: RunBody, db: Database, idempotency_key: Annotated[str | None
         raise CapabilityError("Enable DISCOVERY_ENABLED after local browser setup.", "discovery_not_configured")
     if db.bind.dialect.name != "postgresql":
         raise CapabilityError("Browser discovery requires PostgreSQL.", "postgres_required")
-    if not settings.openai_api_key:
-        raise CapabilityError("Configure OPENAI_API_KEY for the discovery planner.", "model_not_configured")
+    from .model_transport import require_model
+
+    require_model(settings, settings.active_planner_model, vision=True)
     if find_spec("playwright") is None:
         raise CapabilityError("Install the optional browser runtime and Chromium.", "browser_not_installed")
     row = settings_row(db)
@@ -112,9 +115,9 @@ def start_run(body: RunBody, db: Database, idempotency_key: Annotated[str | None
         "discovery",
         idempotency_key,
         {
-            "planner_model": settings.planner_model,
-            "extraction_model": settings.extraction_model,
-            "escalation_model": settings.escalation_model,
+            "planner_model": settings.active_planner_model,
+            "extraction_model": settings.active_extraction_model,
+            "escalation_model": settings.active_escalation_model,
             "taxonomy_version": row.configuration.get("taxonomy_version", "flowers-v2"),
             "prompt_version": "discovery-v1",
             "schema_version": "conversation-v1",

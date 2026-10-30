@@ -55,6 +55,8 @@ def verify_scope(db, scope):
         execution = db.get(GraphExecution, scope.execution_id)
         if not execution or execution.state in {"cancelled", "superseded", "withdrawn"}:
             raise CapabilityError("Execution is no longer active.", "execution_cancelled")
+        if execution.configuration.get("model_provider", "openai") != get_settings().model_provider:
+            raise CapabilityError("Provider changed; explicitly reprocess this execution.", "provider_changed")
         if scope.lease and execution.job_id != scope.lease.job_id:
             raise CapabilityError("Lease does not own this model execution.", "lease_lost")
         if execution.deadline and aware(execution.deadline) <= utcnow():
@@ -71,7 +73,7 @@ def amount_expression():
     return func.coalesce(func.nullif(CostEntry.amount_microusd, 0), func.round(CostEntry.amount_usd * 1_000_000))
 
 
-def reserve_entry(db, model, amount):
+def reserve_entry(db, model, amount, provider=None):
     from .providers import CapabilityError
 
     reserved = microusd(amount)
@@ -88,18 +90,28 @@ def reserve_entry(db, model, amount):
     if spent + reserved > microusd(get_settings().monthly_model_budget_usd):
         raise CapabilityError("Monthly model budget reached. Review spending before retrying.", "budget_exhausted")
     entry = CostEntry(
-        provider="openai", model=model, amount_usd=reserved / 1_000_000, amount_microusd=reserved, state="reserved"
+        provider=provider or get_settings().model_provider,
+        model=model,
+        amount_usd=reserved / 1_000_000,
+        amount_microusd=reserved,
+        state="reserved",
     )
     db.add(entry)
     db.flush()
     return entry
 
 
-def invoke_once(model, request, invoke, reservation_usd=0.10):
+def request_identity(model, request, provider=None):
+    selected = provider or get_settings().model_provider
+    return digest({"provider": selected, "model": model, "request": request})
+
+
+def invoke_once(model, request, invoke, reservation_usd=0.10, *, provider=None):
     """invoke returns (validated JSON result, usage JSON, actual USD). No network transaction."""
     from .providers import CapabilityError
 
-    request_hash = digest({"model": model, "request": request})
+    provider = provider or get_settings().model_provider
+    request_hash = request_identity(model, request, provider)
     scope = CURRENT_SCOPE.get() or CallScope(f"request:{request_hash}", microusd(reservation_usd))
     blocked = None
     with database.SessionLocal() as db:
@@ -155,7 +167,7 @@ def invoke_once(model, request, invoke, reservation_usd=0.10):
                 )
                 if spent + microusd(reservation_usd) > scope.limit_microusd:
                     raise CapabilityError("Execution model allowance reached.", "scope_budget_exhausted")
-                cost = reserve_entry(db, model, reservation_usd)
+                cost = reserve_entry(db, model, reservation_usd, provider)
                 call = ModelCall(
                     scope_key=scope.key,
                     request_hash=request_hash,

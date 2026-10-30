@@ -24,8 +24,9 @@ def offer_configuration(configuration=None):
 
     settings = get_settings()
     return {
-        "extraction_model": settings.extraction_model,
-        "escalation_model": settings.escalation_model,
+        "model_provider": settings.model_provider,
+        "extraction_model": settings.active_extraction_model,
+        "escalation_model": settings.active_escalation_model,
         "taxonomy_version": "flowers-v2",
         "recognition_version": "mixed-flowers-v1",
         "preprocessing_version": "jpeg-1200-v1",

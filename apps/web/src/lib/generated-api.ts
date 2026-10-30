@@ -1837,6 +1837,8 @@ export interface components {
       postgres: boolean;
       /** Model Configured */
       model_configured: boolean;
+      /** Model Provider */
+      model_provider: string;
       /** Browser Installed */
       browser_installed: boolean;
       /** Release Gates */

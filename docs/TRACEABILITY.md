@@ -24,6 +24,7 @@ The newer conversation/discovery delivery is tracked in THREADS-DISCOVERY.md. It
 | Media validation and private storage | Implemented pinned DNS/host allowlists/limits, processing and Supabase REST storage; no arbitrary website fetching |
 | Corrections/takedowns | Implemented suppression, queued purge, derived vectors/cohort cleanup and retention worker |
 | Cost budget/usage ledger | Implemented conservative reservations/circuit breaker; paid measurements not run |
+| Groq generation | Explicit separate key/endpoint, strict structured planner/offer/vision transport, three-image calls, provider-bound receipts and release configurations, published-rate cost estimates. Authenticated model-list access checked; live inference/recognition quality remains unmeasured. See GROQ.md |
 | Operational status | Admin job/source/cost/coverage, role heartbeats and incident acknowledgement; durable local JSONL/in-app alerts, request IDs and health endpoints. No external notification service configured |
 | Docker and CI | Implemented locked dependencies, unit/PG/browser/build/clean-start checks |
 | Backups/private deployment | Separate native PostgreSQL/managed-media snapshots, checksummed manifests, deletion ledger/replay and owned retention; CI exercises native PostgreSQL 17 dump/restore and subsequent deletion replay on fictional data. Actual deployment recovery/credentials and activation remain pending |

@@ -41,7 +41,7 @@ def collection_ready(db, settings, control):
         and settings.discovery_enabled
         and not control.paused
         and readiness(db)["ready"]
-        and bool(settings.openai_api_key)
+        and settings.model_configured
         and db.bind.dialect.name == "postgresql"
     )
 
@@ -113,9 +113,9 @@ def tick(db, now=None):
                 )
                 if not active:
                     config = {
-                        "planner_model": settings.planner_model,
-                        "extraction_model": settings.extraction_model,
-                        "escalation_model": settings.escalation_model,
+                        "planner_model": settings.active_planner_model,
+                        "extraction_model": settings.active_extraction_model,
+                        "escalation_model": settings.active_escalation_model,
                         "taxonomy_version": control.configuration.get("taxonomy_version", "flowers-v2"),
                         "prompt_version": "discovery-v1",
                         "schema_version": "conversation-v1",

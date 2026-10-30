@@ -17,6 +17,7 @@ from .db import aware, utcnow
 from .executions import pinned_execution
 from .leases import guard
 from .model_calls import CallScope, call_scope, invoke_once
+from .model_transport import require_model, structured_response
 from .models import PostVersion, SourceAccount, SourcePost
 from .pipeline import digest
 from .providers import CapabilityError, billed_amount
@@ -194,13 +195,8 @@ def save_view(db, execution, controller, view):
 
 
 def choose_action(model, observation, messages, image=None):
-    from openai import OpenAI
-
     settings = get_settings()
-    if not settings.openai_api_key:
-        raise CapabilityError("Set OPENAI_API_KEY for the bounded discovery planner.", "model_not_configured")
-    if model not in {"gpt-6-luna", "gpt-6.1-sol"}:
-        raise CapabilityError("Configure a supported planner with known spending bounds.", "unsupported_planner_model")
+    require_model(settings, model, vision=bool(image))
     context = {"url": observation.snapshot["url"], "targets": observation.snapshot["targets"], "posts": messages[:12]}
     request = {
         "surface": digest(context),
@@ -220,9 +216,9 @@ def choose_action(model, observation, messages, image=None):
                     "detail": "low",
                 }
             )
-        response = OpenAI(api_key=settings.openai_api_key, timeout=40, max_retries=0).responses.parse(
+        response = structured_response(
+            settings,
             model=model,
-            store=False,
             max_output_tokens=450,
             input=[
                 {
@@ -384,7 +380,7 @@ class DiscoveryServices:
             frontier = db.get(DiscoveryFrontier, state["frontier_id"])
             flower_only = frontier.queue == "fyp"
             scope = CallScope(execution.id, execution.budget_microusd, execution.id, self.lease)
-            model = execution.configuration.get("planner_model", get_settings().planner_model)
+            model = execution.configuration.get("planner_model", get_settings().active_planner_model)
             resume_url = execution.progress.get("resume_url") or frontier.target
             if name == "plan":
                 observation = db.get(BrowserObservation, state["observation_id"])
