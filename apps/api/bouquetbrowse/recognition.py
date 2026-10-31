@@ -325,9 +325,8 @@ def merge_components(db, stated, results, configuration, views):
 
 def analyze_offer(bundle, configuration, call=recognize_call, cv=None):
     """Two original chunks; optional regional escalation is a separate graph step."""
-    views = prepare_views(bundle)
     limit = image_limit(configuration=configuration)
-    views = views[: limit * 2]
+    views = prepare_views({**bundle, "media": bundle["media"][: limit * 2]})[: limit * 2]
     results = [call(bundle, views[start : start + limit], configuration) for start in range(0, len(views), limit)]
     if not results or results[0].interpretation is None:
         raise CapabilityError("Joint recognition did not include textual interpretation.", "interpretation_missing")
@@ -418,7 +417,8 @@ def proposed_regions(db, analysis, output, views):
 
 
 def recheck_offer(bundle, configuration, region_ids, call=recognize_call):
-    originals = prepare_views(bundle)
+    limit = image_limit(configuration=configuration)
+    originals = prepare_views({**bundle, "media": bundle["media"][: limit * 2]})
     by_media = {v["media_id"]: v for v in originals}
     views = []
     with database.SessionLocal() as db:

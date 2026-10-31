@@ -199,7 +199,13 @@ def test_groq_two_image_chunks_preserve_truncation(db, monkeypatch):
 
     settings = groq_settings()
     monkeypatch.setattr(config, "get_settings", lambda: settings)
-    monkeypatch.setattr(recognition, "prepare_views", lambda bundle: [{"media_id": str(i)} for i in range(8)])
+    prepared = []
+
+    def prepare(bundle):
+        prepared.extend(m["media_id"] for m in bundle["media"])
+        return bundle["media"]
+
+    monkeypatch.setattr(recognition, "prepare_views", prepare)
     calls = []
 
     def call(bundle, views, configuration):
@@ -210,4 +216,5 @@ def test_groq_two_image_chunks_preserve_truncation(db, monkeypatch):
         {"media": [{"media_id": str(i)} for i in range(8)]}, {"model_provider": "groq"}, call=call
     )
     assert calls == [3, 3]
+    assert prepared == [str(i) for i in range(6)]  # Unprocessed carousel media cannot block readiness.
     assert output["unprocessed_media"] == ["6", "7"]
