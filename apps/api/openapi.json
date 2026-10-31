@@ -4916,6 +4916,10 @@
             "type": "boolean",
             "title": "Model Configured"
           },
+          "model_provider": {
+            "type": "string",
+            "title": "Model Provider"
+          },
           "browser_installed": {
             "type": "boolean",
             "title": "Browser Installed"
@@ -4938,6 +4942,7 @@
           "settings_version",
           "postgres",
           "model_configured",
+          "model_provider",
           "browser_installed",
           "release_gates",
           "publication_enabled"

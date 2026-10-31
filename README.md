@@ -42,6 +42,8 @@ The local Threads discovery flow is implemented separately from the manual impor
 
 Studio → **Research & operations** connects health/alerts, conversation evidence, taxonomy review, same-seller canonical links, private image annotation/evaluation and release proofs. The existing **Threads discovery** tab controls bounded runs, frontier, associations, model-call replay and spending. Synthetic evaluations cannot qualify live publication. See [private evaluation workflow](docs/EVALUATION-WORKFLOW.md).
 
+Generation can use an explicitly selected Groq provider with a separate `GROQ_API_KEY`; see [Groq configuration and testing](docs/GROQ.md). Adding the key does not start browsing or inference, and free-tier availability does not establish model quality or billing status.
+
 For a real public post, open Studio → Import → **Collect a public post**. Paste a Threads post/share link or Instagram post URL, collect an editable draft, and complete its missing seller/date fields before importing. This anonymous HTML collector needs no API token; source access restrictions can still prevent collection. See [public-page collector](docs/PUBLIC-PAGE-COLLECTOR.md).
 
 1. Enter the catalog studio demo, open Import and edit the provided JSON. Explicitly set the content-use confirmation to true for your own permitted content.

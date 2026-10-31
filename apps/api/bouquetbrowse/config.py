@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     supabase_secret_key: str = ""
     supabase_storage_bucket: str = "bouquet-media"
     openai_api_key: str = ""
+    model_provider: str = "openai"
+    groq_api_key: str = ""
+    groq_planner_model: str = "qwen/qwen3.8-27b"
+    groq_extraction_model: str = "qwen/qwen3.8-27b"
+    groq_escalation_model: str = "qwen/qwen3.8-27b"
     extraction_model: str = "gpt-6-luna"
     escalation_model: str = "gpt-6.1-sol"
     embedding_model: str = "text-embedding-3-small"
@@ -61,8 +66,12 @@ class Settings(BaseSettings):
                 raise ValueError("Pilot requires a unique INTERNAL_API_TOKEN of at least 32 characters")
             if not self.public_origin.startswith("https://"):
                 raise ValueError("Pilot requires an HTTPS PUBLIC_ORIGIN")
-        if self.extraction_provider not in {"rules", "openai"}:
+        if self.model_provider not in {"openai", "groq"}:
+            raise ValueError("MODEL_PROVIDER must be openai or groq")
+        if self.extraction_provider not in {"rules", "openai", "groq"}:
             raise ValueError("Unknown extraction provider")
+        if self.extraction_provider != "rules" and self.extraction_provider != self.model_provider:
+            raise ValueError("EXTRACTION_PROVIDER must match MODEL_PROVIDER or be rules")
         if self.image_embedding_provider not in {"disabled", "siglip"}:
             raise ValueError("Unknown image embedding provider")
         if not isfinite(self.monthly_model_budget_usd) or not 0 < self.monthly_model_budget_usd <= 100:
@@ -70,6 +79,22 @@ class Settings(BaseSettings):
         if not isfinite(self.per_request_reservation_usd) or self.per_request_reservation_usd <= 0:
             raise ValueError("Request reservations must be positive and finite")
         return self
+
+    @property
+    def model_configured(self):
+        return bool(self.groq_api_key if self.model_provider == "groq" else self.openai_api_key)
+
+    @property
+    def active_planner_model(self):
+        return self.groq_planner_model if self.model_provider == "groq" else self.planner_model
+
+    @property
+    def active_extraction_model(self):
+        return self.groq_extraction_model if self.model_provider == "groq" else self.extraction_model
+
+    @property
+    def active_escalation_model(self):
+        return self.groq_escalation_model if self.model_provider == "groq" else self.escalation_model
 
 
 @lru_cache

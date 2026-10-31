@@ -14,6 +14,7 @@ from .config import get_settings
 from .conversation_models import TaxonomyTerm
 from .db import aware, utcnow
 from .model_calls import invoke_once
+from .model_transport import image_limit, require_model, structured_response
 from .models import MediaAsset
 from .pipeline import digest
 from .providers import CapabilityError, billed_amount
@@ -25,6 +26,7 @@ def configuration_hash(configuration):
     from .graphs import BEHAVIOR_VERSION
 
     keys = [
+        "model_provider",
         "extraction_model",
         "escalation_model",
         "taxonomy_version",
@@ -99,10 +101,8 @@ def request_identity(bundle, views, configuration, purpose="joint", stronger=Fal
     settings = get_settings()
     model = configuration.get(
         "escalation_model" if stronger else "extraction_model",
-        settings.escalation_model if stronger else settings.extraction_model,
+        settings.active_escalation_model if stronger else settings.active_extraction_model,
     )
-    if model not in {"gpt-6-luna", "gpt-6.1-sol"}:
-        raise CapabilityError("Recognition model has no configured cost contract.", "model_not_configured")
     # Evaluation omits all source conversation text and cannot later become a publishing result.
     context = {} if purpose == "image_only" else bundle
     if purpose == "regional_recheck":
@@ -113,6 +113,7 @@ def request_identity(bundle, views, configuration, purpose="joint", stronger=Fal
         }
     dependencies = {
         "purpose": purpose,
+        "provider": configuration.get("model_provider", settings.model_provider),
         "context_hash": digest(context),
         "views": [{key: v[key] for key in ["view_id", "media_id", "checksum", "content_hash"]} for v in views],
         "configuration": configuration_hash(configuration),
@@ -123,11 +124,14 @@ def request_identity(bundle, views, configuration, purpose="joint", stronger=Fal
 
 def recognize_call(bundle, views, configuration, purpose="joint", stronger=False):
     settings = get_settings()
-    if not settings.openai_api_key:
-        raise CapabilityError("Configure OPENAI_API_KEY for bouquet recognition.", "model_not_configured")
-    if not views or len(views) > 4 or purpose not in {"joint", "image_only", "regional_recheck"}:
-        raise ValueError("Recognition requires one to four bounded image views")
+    if (
+        not views
+        or len(views) > image_limit(settings, configuration)
+        or purpose not in {"joint", "image_only", "regional_recheck"}
+    ):
+        raise ValueError("Recognition exceeds the selected provider's bounded image views")
     context, model, dependencies = request_identity(bundle, views, configuration, purpose, stronger)
+    provider = require_model(settings, model, vision=True, provider=configuration.get("model_provider"))
     key = digest(dependencies)
     with database.SessionLocal() as db:
         from .taxonomy import vocabulary
@@ -138,8 +142,6 @@ def recognize_call(bundle, views, configuration, purpose="joint", stronger=False
             return RecognitionResult.model_validate(cached.result)
 
     def perform():
-        from openai import OpenAI
-
         content = [
             {
                 "type": "input_text",
@@ -169,9 +171,11 @@ def recognize_call(bundle, views, configuration, purpose="joint", stronger=False
                     },
                 ]
             )
-        response = OpenAI(api_key=settings.openai_api_key, timeout=45, max_retries=0).responses.parse(
+        response = structured_response(
+            settings,
             model=model,
-            store=False,
+            provider=provider,
+            timeout=45,
             max_output_tokens=1200 if stronger else 3000,
             input=[
                 {
@@ -195,11 +199,12 @@ def recognize_call(bundle, views, configuration, purpose="joint", stronger=False
         usage = response.usage.model_dump() if response.usage else {}
         return result.model_dump(mode="json"), usage, billed_amount(model, usage, reservation)
 
-    reservation = 0.05 if stronger else 0.025 if model == "gpt-6-luna" else 0.08
+    reservation = 0.05 if stronger else 0.025 if provider == "groq" or model == "gpt-6-luna" else 0.08
     result, _ = invoke_once(model, dependencies, perform, reservation)
     parsed = RecognitionResult.model_validate(result)
     with database.SessionLocal() as db:
         from .model_calls import CURRENT_SCOPE, verify_scope
+        from .model_calls import request_identity as call_identity
 
         scope = CURRENT_SCOPE.get()
         if scope:
@@ -221,7 +226,7 @@ def recognize_call(bundle, views, configuration, purpose="joint", stronger=False
                     offer_id=bundle.get("offer_id") if purpose != "image_only" else None,
                     purpose=purpose,
                     configuration_hash=configuration_hash(configuration),
-                    dependencies={**dependencies, "request_hash": digest({"model": model, "request": dependencies})},
+                    dependencies={**dependencies, "request_hash": call_identity(model, dependencies, provider)},
                     result=parsed.model_dump(mode="json"),
                     retention_until=utcnow() + timedelta(days=30),
                 )
@@ -320,8 +325,9 @@ def merge_components(db, stated, results, configuration, views):
 
 def analyze_offer(bundle, configuration, call=recognize_call, cv=None):
     """Two original chunks; optional regional escalation is a separate graph step."""
-    views = prepare_views(bundle)
-    results = [call(bundle, views[start : start + 4], configuration) for start in range(0, len(views), 4)]
+    limit = image_limit(configuration=configuration)
+    views = prepare_views({**bundle, "media": bundle["media"][: limit * 2]})[: limit * 2]
+    results = [call(bundle, views[start : start + limit], configuration) for start in range(0, len(views), limit)]
     if not results or results[0].interpretation is None:
         raise CapabilityError("Joint recognition did not include textual interpretation.", "interpretation_missing")
     auxiliary = []
@@ -356,7 +362,7 @@ def analyze_offer(bundle, configuration, call=recognize_call, cv=None):
         "results": results,
         "views": views,
         "auxiliary": auxiliary,
-        "unprocessed_media": [m["media_id"] for m in bundle["media"][8:]],
+        "unprocessed_media": [m["media_id"] for m in bundle["media"][limit * 2 :]],
         "needs_recheck": any(r.regions for r in results)
         or bool(auxiliary and any(f.state != "present" for r in results for f in r.flowers)),
     }
@@ -411,12 +417,13 @@ def proposed_regions(db, analysis, output, views):
 
 
 def recheck_offer(bundle, configuration, region_ids, call=recognize_call):
-    originals = prepare_views(bundle)
+    limit = image_limit(configuration=configuration)
+    originals = prepare_views({**bundle, "media": bundle["media"][: limit * 2]})
     by_media = {v["media_id"]: v for v in originals}
     views = []
     with database.SessionLocal() as db:
         for region_id in region_ids[:24]:
-            if len(views) >= 4:
+            if len(views) >= image_limit(configuration=configuration):
                 break
             region = db.get(ImageRegion, region_id)
             if not region or region.kind != "analysis" or aware(region.retention_until) <= utcnow():

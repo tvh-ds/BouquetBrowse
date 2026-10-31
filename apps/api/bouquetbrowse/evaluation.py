@@ -14,6 +14,7 @@ from .db import aware, utcnow
 from .executions import create_execution, pinned_execution
 from .leases import guard
 from .model_calls import CallScope, call_scope
+from .model_transport import image_limit, require_model
 from .models import CostEntry, MediaAsset
 from .offers import evidence_bundle
 from .pipeline import digest
@@ -52,8 +53,13 @@ def checked_item(db, item):
 def queue_dataset(db, dataset):
     from .config import get_settings
 
-    if not get_settings().openai_api_key:
-        raise CapabilityError("Set the local model key before explicitly running evaluation.", "model_not_configured")
+    settings = get_settings()
+    require_model(
+        settings,
+        dataset.configuration["extraction_model"],
+        vision=True,
+        provider=dataset.configuration.get("model_provider"),
+    )
     items = list(db.scalars(select(EvaluationItem).where(EvaluationItem.dataset_id == dataset.id)))
     groups = {}
     for item in items:
@@ -279,7 +285,7 @@ class EvaluationServices:
                 crops = []
                 for result in results:
                     for region in result.regions:
-                        if region.reason == "multi_product" or len(crops) >= 4:
+                        if region.reason == "multi_product" or len(crops) >= image_limit(configuration=configuration):
                             continue
                         source = next(v for v in views if v["media_id"] == region.media_id)
                         content = crop_image(source["bytes"], region.bounds)

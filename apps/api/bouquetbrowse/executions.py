@@ -16,6 +16,7 @@ def create_execution(db, kind, command_key, configuration, input_fingerprint, of
     from .config import get_settings
 
     configuration = dict(configuration)
+    configuration.setdefault("model_provider", get_settings().model_provider)
     if kind in {"offer", "evaluation"}:
         settings = get_settings()
         for key, value in {
@@ -30,6 +31,7 @@ def create_execution(db, kind, command_key, configuration, input_fingerprint, of
     if not command_key or len(command_key) > 160:
         raise ValueError("A bounded idempotency key is required")
     allowed = {
+        "model_provider",
         "planner_model",
         "extraction_model",
         "escalation_model",
@@ -95,4 +97,9 @@ def pinned_execution(db, execution_id):
     execution = db.scalar(select(GraphExecution).where(GraphExecution.id == execution_id))
     if not execution or execution.behavior_version != BEHAVIOR_VERSION:
         raise ValueError("This execution needs its compatible pinned graph or an explicit migration")
+    from .config import get_settings
+    from .providers import CapabilityError
+
+    if execution.configuration.get("model_provider", "openai") != get_settings().model_provider:
+        raise CapabilityError("Provider changed; explicitly reprocess this execution.", "provider_changed")
     return execution

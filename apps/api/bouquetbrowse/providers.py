@@ -9,6 +9,7 @@ from sqlalchemy import func, select, text
 from .config import get_settings
 from .db import SessionLocal
 from .extraction import validate_grounding
+from .model_transport import RATES, image_limit, require_model, structured_response
 from .models import CostEntry
 from .schemas import ProductExtraction
 
@@ -35,7 +36,9 @@ def reserve_cost(model: str, amount: float | None = None):
             raise CapabilityError("Monthly model budget reached. Review spending before retrying.", "budget_exhausted")
         from .model_calls import microusd
 
-        entry = CostEntry(provider="openai", model=model, amount_usd=reserved, amount_microusd=microusd(reserved))
+        entry = CostEntry(
+            provider=s.model_provider, model=model, amount_usd=reserved, amount_microusd=microusd(reserved)
+        )
         db.add(entry)
         db.commit()
         return entry.id
@@ -53,8 +56,8 @@ def settle_cost(entry_id, amount, usage=None):
         db.commit()
 
 
-def billed_amount(model, usage, reservation):
-    rates = {"gpt-6-luna": (0.1, 0.5), "gpt-6.1-sol": (2, 10)}
+def billed_amount(model, usage, reservation, provider=None):
+    rates = RATES.get(provider or get_settings().model_provider, {})
     if model not in rates or not usage or "input_tokens" not in usage or "output_tokens" not in usage:
         return reservation
     input_rate, output_rate = rates[model]
@@ -66,9 +69,9 @@ def structured_extract(caption: str, image_bytes: list[bytes] | None = None):
     from .pipeline import digest
 
     s = get_settings()
-    if not s.openai_api_key:
-        raise CapabilityError("Set OPENAI_API_KEY to enable live extraction.", "model_not_configured")
-    images = (image_bytes or [])[:4]
+    model = s.active_extraction_model
+    require_model(s, model, vision=bool(image_bytes))
+    images = (image_bytes or [])[: image_limit(s)]
 
     def perform():
         content = [{"type": "input_text", "text": caption}]
@@ -80,9 +83,9 @@ def structured_extract(caption: str, image_bytes: list[bytes] | None = None):
                     "detail": "low",
                 }
             )
-        response = OpenAI(api_key=s.openai_api_key, timeout=40, max_retries=0).responses.parse(
-            model=s.extraction_model,
-            store=False,
+        response = structured_response(
+            s,
+            model=model,
             max_output_tokens=2200,
             input=[
                 {
@@ -97,13 +100,13 @@ def structured_extract(caption: str, image_bytes: list[bytes] | None = None):
             raise CapabilityError("Model output was incomplete.", "extraction_incomplete")
         output = validate_grounding(response.output_parsed, caption)
         usage = response.usage.model_dump() if response.usage else {}
-        actual = billed_amount(s.extraction_model, usage, s.per_request_reservation_usd)
+        actual = billed_amount(model, usage, s.per_request_reservation_usd)
         return {"extraction": output.model_dump(mode="json"), "cost_usd": actual}, usage, actual
 
     import hashlib
 
     result, _ = invoke_once(
-        s.extraction_model,
+        model,
         {
             "caption_hash": digest(caption),
             "image_hashes": [hashlib.sha256(image).hexdigest() for image in images],
@@ -112,7 +115,10 @@ def structured_extract(caption: str, image_bytes: list[bytes] | None = None):
         perform,
         s.per_request_reservation_usd,
     )
-    return ProductExtraction.model_validate(result["extraction"]), result["cost_usd"]
+    output = ProductExtraction.model_validate(result["extraction"])
+    if len(image_bytes or []) > len(images):
+        output.warnings.append(f"Only {len(images)} of {len(image_bytes)} supplied images analyzed.")
+    return output, result["cost_usd"]
 
 
 def _live_text_vector(query: str, model: str):
@@ -131,7 +137,7 @@ def _live_text_vector(query: str, model: str):
         actual = usage.get("total_tokens", 0) * 0.02 / 1_000_000 if model == "text-embedding-3-small" else 0.001
         return {"vector": list(response.data[0].embedding)}, usage, actual
 
-    result, _ = invoke_once(model, {"text_hash": digest(query), "dimensions": 1536}, perform, 0.001)
+    result, _ = invoke_once(model, {"text_hash": digest(query), "dimensions": 1536}, perform, 0.001, provider="openai")
     return tuple(result["vector"])
 
 

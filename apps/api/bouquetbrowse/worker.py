@@ -353,7 +353,9 @@ def prepare_external(job, lease):
 
             delete_media(p["storage_key"])
         return {"deleted": not bool(used)}
-    if job.kind == "extract" and get_settings().extraction_provider == "openai":
+    if job.kind == "extract" and get_settings().extraction_provider in {"openai", "groq"}:
+        from .model_transport import image_limit
+
         with SessionLocal() as db:
             version = db.get(PostVersion, p["version_id"])
             if not version or not version.caption or aware(version.retention_until) <= utcnow():
@@ -367,7 +369,7 @@ def prepare_external(job, lease):
                     .join(PostMedia, PostMedia.media_id == MediaAsset.id)
                     .where(PostMedia.version_id == version.id, MediaAsset.state == "ready")
                     .order_by(PostMedia.position)
-                    .limit(4)
+                    .limit(image_limit())
                 )
             )
             total = len(list(db.scalars(select(PostMedia.id).where(PostMedia.version_id == version.id))))

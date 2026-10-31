@@ -11,6 +11,7 @@ from .db import utcnow
 from .executions import pinned_execution
 from .leases import guard
 from .model_calls import CallScope, call_scope, invoke_once
+from .model_transport import require_model, structured_response
 from .models import Listing, MediaAsset
 from .offer_contracts import OfferInterpretation
 from .offer_models import AssociationReview, OfferAnalysis
@@ -26,21 +27,17 @@ from .providers import CapabilityError, billed_amount
 
 
 def interpret_offer(bundle, configuration):
-    from openai import OpenAI
-
     settings = get_settings()
-    if not settings.openai_api_key:
-        raise CapabilityError("Configure OPENAI_API_KEY for live offer understanding.", "model_not_configured")
-    model = configuration.get("extraction_model", settings.extraction_model)
-    if model not in {"gpt-6-luna", "gpt-6.1-sol"}:
-        raise CapabilityError("Unsupported budgeted interpretation model.", "model_not_configured")
+    model = configuration.get("extraction_model", settings.active_extraction_model)
+    provider = require_model(settings, model, provider=configuration.get("model_provider"))
 
     def perform():
         import json
 
-        response = OpenAI(api_key=settings.openai_api_key, timeout=40, max_retries=0).responses.parse(
+        response = structured_response(
+            settings,
             model=model,
-            store=False,
+            provider=provider,
             max_output_tokens=2400,
             input=[
                 {

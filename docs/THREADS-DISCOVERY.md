@@ -52,4 +52,6 @@ Every module follows branch/test/push/PR/attach/current-head CI/diff review/squa
 
 The user deferred live sign-in, model keys and paid/live tests until an explicit later command. Continue implementation and synthetic CI with placeholders; do not start live collection during this delivery.
 
+31 October provider extension: generation can explicitly use Groq with its own key, strict Chat Completions transport and provider-pinned receipts/proofs. OpenAI remains the default provider in the example configuration. Groq uses at most three images per call/two original chunks; text embeddings remain optional and OpenAI-only. See GROQ.md. Provider changes require fresh qualification; adding credentials does not activate collection.
+
 Completion modules 18–22 close the non-live gaps found after the initial module deliveries. See IMPLEMENTATION-COMPLETION.md and each module's PR for the delivery record. Research administration now connects general capture inspection, taxonomy proposal review/rebase, same-seller canonical consolidation/revocation, private annotation and evaluation, proof attestation/revocation, profile removal and operational alerts. Annotation can explicitly abstain on every flower type; benchmarks still enforce their independent sample/quality requirements.
