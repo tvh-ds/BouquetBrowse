@@ -144,6 +144,38 @@ def test_provider_isolation_in_receipts_and_spending(db):
     assert {e.provider for e in db.scalars(select(CostEntry))} == {"openai", "groq"}
 
 
+def test_upgrade_preserves_uncertain_legacy_openai_receipt(db):
+    from datetime import timedelta
+
+    from bouquetbrowse.db import utcnow
+    from bouquetbrowse.pipeline import digest
+    from bouquetbrowse.runtime_models import ModelCall
+
+    request = {"text_hash": "fictional-retained-text", "dimensions": 1536}
+    legacy_hash = digest({"model": "text-embedding-3-small", "request": request})
+    cost = CostEntry(
+        provider="openai", model="text-embedding-3-small", state="uncertain", amount_usd=0.001, amount_microusd=1000
+    )
+    db.add(cost)
+    db.flush()
+    db.add(
+        ModelCall(
+            scope_key=f"request:{legacy_hash}",
+            request_hash=legacy_hash,
+            attempt=1,
+            model=cost.model,
+            cost_id=cost.id,
+            state="uncertain",
+            retention_until=utcnow() + timedelta(days=30),
+        )
+    )
+    db.commit()
+    called = []
+    with pytest.raises(CapabilityError, match="uncertain"):
+        model_calls.invoke_once(cost.model, request, lambda: called.append(True), provider="openai")
+    assert called == []
+
+
 def test_groq_quota_failure_is_not_retried_automatically(db, monkeypatch):
     requests = fake_provider(monkeypatch, status=429)
     settings = groq_settings()

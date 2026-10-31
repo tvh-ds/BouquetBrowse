@@ -103,7 +103,12 @@ def reserve_entry(db, model, amount, provider=None):
 
 def request_identity(model, request, provider=None):
     selected = provider or get_settings().model_provider
-    return digest({"provider": selected, "model": model, "request": request})
+    # Before multi-provider support every receipt was OpenAI. Preserve that namespace
+    # so legacy extraction/embedding job retries cannot bypass uncertain receipts.
+    identity = {"model": model, "request": request}
+    if selected != "openai":
+        identity["provider"] = selected
+    return digest(identity)
 
 
 def invoke_once(model, request, invoke, reservation_usd=0.10, *, provider=None):
