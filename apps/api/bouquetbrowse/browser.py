@@ -174,7 +174,12 @@ class BrowserController:
         query = parse_qs(parsed.query)
         if POST.fullmatch(parsed.path):
             return
-        if parsed.path == "/search" and query.get("filter") == ["recent"] and len(query.get("q", [])) == 1:
+        if (
+            parsed.path == "/search"
+            and query.get("filter") == ["recent"]
+            and query.get("serp_type") == ["default"]
+            and len(query.get("q", [])) == 1
+        ):
             if parse_qs(urlsplit(search_url(query["q"][0])).query)["q"] == query["q"]:
                 return
         raise CapabilityError(

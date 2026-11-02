@@ -56,6 +56,7 @@ def test_recent_mode_config_menu_and_navigation_scope():
         "https://www.threads.com/@fictional",
         "https://www.threads.com/search?q=hoa&filter=recent",
         "https://www.threads.com/search?q=hoa+Hanoi&filter=top",
+        "https://www.threads.com/search?q=hoa+Hanoi&filter=recent&serp_type=profiles",
     ]:
         with pytest.raises(CapabilityError):
             controller.check_scope(url)
