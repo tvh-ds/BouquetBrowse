@@ -76,10 +76,11 @@ def add_frontier(db, kind, target, queue="discovery", origin="seed", gaps=None):
     return db.scalar(select(DiscoveryFrontier).where(DiscoveryFrontier.key == key))
 
 
-def seed_frontier(db):
+def seed_frontier(db, mode=None):
     for query in SEED_QUERIES:
         add_frontier(db, "search", query)
-    add_frontier(db, "fyp", "https://www.threads.com/", "fyp")
+    if (mode or get_settings().discovery_mode) == "full":
+        add_frontier(db, "fyp", "https://www.threads.com/", "fyp")
 
 
 def select_frontier(db, execution):
@@ -87,6 +88,9 @@ def select_frontier(db, execution):
     rows = []
     # A busy refresh queue must not hide discovery/FYP beyond a global LIMIT.
     for queue_name in WEIGHTS:
+        recent_only = execution.configuration.get("discovery_mode", "full") == "recent_search"
+        if recent_only and queue_name != "discovery":
+            continue
         rows.extend(
             db.scalars(
                 select(DiscoveryFrontier)
@@ -94,6 +98,7 @@ def select_frontier(db, execution):
                     DiscoveryFrontier.due_at <= now,
                     DiscoveryFrontier.state == "due",
                     DiscoveryFrontier.queue == queue_name,
+                    *([DiscoveryFrontier.kind == "search"] if recent_only else []),
                 )
                 .order_by(DiscoveryFrontier.due_at, DiscoveryFrontier.id)
                 .limit(100)
@@ -193,6 +198,7 @@ def save_view(db, execution, controller, view):
             "url": view["url"],
             "targets": view["targets"],
             "sorting": view["sorting"],
+            "search_sort": view.get("search_sort", "unknown"),
             "profile_snapshot_id": profile_id,
             "remaining_expansions": view["remaining_expansions"],
         },
@@ -279,6 +285,8 @@ class DiscoveryServices:
             raise CapabilityError("Lease does not own this execution.", "lease_lost")
         if not get_settings().discovery_enabled:
             raise CapabilityError("Enable DISCOVERY_ENABLED after local setup.", "discovery_not_configured")
+        if execution.configuration.get("discovery_mode", "full") != get_settings().discovery_mode:
+            raise CapabilityError("Discovery mode changed; start a new bounded run.", "discovery_mode_changed")
         if settings_row(db).paused:
             raise CapabilityError("Discovery is paused by the operator.", "discovery_paused")
         if execution.state in {"cancelled", "superseded"}:
@@ -307,7 +315,7 @@ class DiscoveryServices:
                 return {"stop": True}
             if name == "load_limits":
                 execution.state = "processing"
-                seed_frontier(db)
+                seed_frontier(db, execution.configuration.get("discovery_mode", "full"))
                 db.commit()
                 return {}
             if name == "select_task":
@@ -478,8 +486,11 @@ class DiscoveryServices:
                     .where(ModelCall.execution_id == execution.id)
                 )
                 context = {
+                    "discovery_mode": execution.configuration.get("discovery_mode", "full"),
                     "objective": "refresh_known_evidence"
                     if frontier.queue == "refresh"
+                    else "search_recent_flower_posts_and_resolve_reply_evidence"
+                    if execution.configuration.get("discovery_mode") == "recent_search"
                     else "discover_flower_sellers_and_resolve_offer_evidence",
                     "frontier_kind": frontier.kind,
                     "evidence_gaps": frontier.evidence_gaps,
@@ -607,6 +618,8 @@ class DiscoveryServices:
             observation = save_view(db, execution, self.controller, view)
             execution.progress = {**execution.progress, "resume_url": view["url"]}
             for target in view["targets"].values():
+                if execution.configuration.get("discovery_mode") == "recent_search":
+                    continue
                 if target["kind"] in {"open_post", "visit_profile"}:
                     add_frontier(
                         db, "post" if target["kind"] == "open_post" else "profile", target["url"], origin="observed"
@@ -621,9 +634,11 @@ def run_discovery(execution_id, lease):
 
     settings = get_settings()
     try:
+        with database.SessionLocal() as db:
+            mode = pinned_execution(db, execution_id).configuration.get("discovery_mode", "full")
         with (
             postgres_checkpointer(settings.database_url) as saver,
-            open_browser(settings.discovery_profile_dir) as browser,
+            open_browser(settings.discovery_profile_dir, mode=mode) as browser,
         ):
             services = DiscoveryServices(execution_id, lease, browser)
             result = invoke_graph(discovery_graph(services, saver), execution_id)

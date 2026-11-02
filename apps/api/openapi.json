@@ -4896,6 +4896,14 @@
       },
       "StatusView": {
         "properties": {
+          "discovery_mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "recent_search"
+            ],
+            "title": "Discovery Mode"
+          },
           "enabled": {
             "type": "boolean",
             "title": "Enabled"
@@ -4937,6 +4945,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "discovery_mode",
           "enabled",
           "paused",
           "settings_version",

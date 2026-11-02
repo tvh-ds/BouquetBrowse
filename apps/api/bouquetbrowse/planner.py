@@ -15,6 +15,12 @@ def action_menu(snapshot, queries):
     context = snapshot.get("planning_context", {})
     visited = {r.get("url") for r in context.get("recent_actions", []) if r["state"] == "completed"}
     for target, data in list(snapshot["targets"].items())[:60]:
+        if context.get("discovery_mode") == "recent_search" and data["kind"] in {
+            "visit_profile",
+            "open_sort",
+            "set_sort",
+        }:
+            continue
         if data["kind"] in {"open_post", "visit_profile"} and (
             data.get("url") == snapshot["url"] or context.get("no_yield_steps", 0) and data.get("url") in visited
         ):
