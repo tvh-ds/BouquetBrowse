@@ -492,7 +492,7 @@ class DiscoveryServices:
                     "decisions_remaining": max(0, 20 - execution.progress.get("planner_calls", 0)),
                     "deadline": execution.deadline.isoformat() if execution.deadline else None,
                     "budget_ceiling_microusd": execution.budget_microusd,
-                    "remaining_budget_microusd": max(0, execution.budget_microusd - spent),
+                    "remaining_budget_microusd": max(0, execution.budget_microusd - int(spent)),
                     "no_yield_steps": execution.progress.get("no_yield_steps", 0),
                 }
                 observation.snapshot = {**observation.snapshot, "planning_context": context}
