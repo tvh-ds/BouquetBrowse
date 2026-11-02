@@ -12,6 +12,8 @@ roles (including unresolved), observed reply/quote edges, commercial excerpts up
 to 1,000 characters per message, the task objective, evidence gaps, sorting and
 remaining expansions, six recent action outcomes, deadline, decision allowance
 and ledger budget headroom. Roles and missing ancestry are not inferred here.
+Task context is ephemeral and reconstructed on resume; recent source URLs are not
+copied into unrelated capture snapshots.
 Excerpts help browsing only; commercial extraction still uses original evidence.
 Screenshots remain the existing bounded fallback, not general desktop control.
 

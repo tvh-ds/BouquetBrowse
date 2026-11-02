@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from bouquetbrowse import discovery
 from bouquetbrowse.browser import BrowserAction
+from bouquetbrowse.browser_models import BrowserObservation
 from bouquetbrowse.config import Settings
 from bouquetbrowse.conversation_contracts import CaptureEnvelope, MessageObservation
 from bouquetbrowse.db import aware, utcnow
@@ -198,6 +199,7 @@ def test_recovery_is_bounded_and_receipted(db, monkeypatch, failure, persistent)
     invoke_graph(graph, execution.id)
     db.expire_all()
     receipts = db.scalars(select(ActionReceipt).order_by(ActionReceipt.created_at, ActionReceipt.id)).all()
+    assert all("planning_context" not in o.snapshot for o in db.scalars(select(BrowserObservation)))
     assert len(receipts) == 2
     assert receipts[0].state == ("skipped" if failure == "stale_observation" else "rejected")
     assert receipts[0].continuation["error_code"] == failure

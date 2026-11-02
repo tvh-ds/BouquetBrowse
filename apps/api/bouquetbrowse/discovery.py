@@ -495,6 +495,9 @@ class DiscoveryServices:
                     "remaining_budget_microusd": max(0, execution.budget_microusd - int(spent)),
                     "no_yield_steps": execution.progress.get("no_yield_steps", 0),
                 }
+                # Context is reconstructed from authoritative records on resume.
+                # Do not persist copies of other tasks' source URLs in this capture.
+                db.expunge(observation)
                 observation.snapshot = {**observation.snapshot, "planning_context": context}
                 execution.progress = {
                     **execution.progress,
