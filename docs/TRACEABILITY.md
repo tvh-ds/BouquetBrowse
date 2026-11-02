@@ -41,3 +41,5 @@ Initial baseline is one coordinated module branch codex/00-bootstrap. Subsequent
 Planner reliability: candidate selection, correction budgets, deferred-task events, semantic receipt identity and crash-safe terminal action receipts are implemented with synthetic regression coverage. See PLANNER-RELIABILITY.md. Real post-change performance remains to be measured.
 
 Provider diagnostics: allowlisted failure metadata, admin-only retrieval, safe job/log summaries, retention and unchanged uncertain-call replay controls are implemented; see PROVIDER-DIAGNOSTICS.md. Validation uses fake providers; no automatic live replay.
+
+Recent-search-only discovery: mode-pinned frontier/menu/controller restrictions, active Recent-tab verification and capture ordering provenance are implemented. See RECENT-SEARCH.md; no automatic publication or recurring activation.

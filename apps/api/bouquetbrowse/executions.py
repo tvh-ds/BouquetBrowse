@@ -17,6 +17,10 @@ def create_execution(db, kind, command_key, configuration, input_fingerprint, of
 
     configuration = dict(configuration)
     configuration.setdefault("model_provider", get_settings().model_provider)
+    if kind == "discovery":
+        configuration.setdefault("discovery_mode", get_settings().discovery_mode)
+        if configuration["discovery_mode"] not in {"full", "recent_search"}:
+            raise ValueError("Unknown discovery mode")
     if kind in {"offer", "evaluation"}:
         settings = get_settings()
         for key, value in {
@@ -32,6 +36,7 @@ def create_execution(db, kind, command_key, configuration, input_fingerprint, of
         raise ValueError("A bounded idempotency key is required")
     allowed = {
         "model_provider",
+        "discovery_mode",
         "planner_model",
         "extraction_model",
         "escalation_model",

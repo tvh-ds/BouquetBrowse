@@ -1827,6 +1827,11 @@ export interface components {
     };
     /** StatusView */
     StatusView: {
+      /**
+       * Discovery Mode
+       * @enum {string}
+       */
+      discovery_mode: "full" | "recent_search";
       /** Enabled */
       enabled: boolean;
       /** Paused */

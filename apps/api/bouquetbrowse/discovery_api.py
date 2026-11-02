@@ -1,7 +1,7 @@
 """Authenticated local discovery administration. No browser session material is exposed."""
 
 from importlib.util import find_spec
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import Field
@@ -34,6 +34,7 @@ class SettingsBody(StrictModel):
 
 
 class StatusView(StrictModel):
+    discovery_mode: Literal["full", "recent_search"]
     enabled: bool
     paused: bool
     settings_version: int
@@ -64,6 +65,7 @@ def status(db: Database):
     gates = readiness(db)
     row = db.scalar(select(DiscoverySettings).where(DiscoverySettings.name == "threads"))
     return {
+        "discovery_mode": settings.discovery_mode,
         "enabled": settings.discovery_enabled,
         "paused": row.paused if row else True,
         "settings_version": row.version if row else 0,

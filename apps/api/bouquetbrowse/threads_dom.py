@@ -38,6 +38,17 @@ READ_SURFACE = r"""() => {
     .filter(x=>x.sort || /^(?:view|show|load|see).{0,50}(?:repl|more)|^(?:xem|hiển thị|tải).{0,50}(?:phản hồi|trả lời)|^sort\b|^sắp xếp\b/i.test(x.label)
       || x.role==='menuitem' && /^(?:top|recent|newest|most recent|all replies)$/i.test(x.label)).slice(0,40);
   const path=location.pathname;
+  const activeSearchTabs=[...document.querySelectorAll('a[aria-current="page"],a[aria-selected="true"],[role="tab"][aria-selected="true"]')]
+    .filter(shown).filter(e=>{
+      try {const u=new URL(e.getAttribute('href'),location.href);
+        return u.origin===location.origin && u.pathname==='/search'
+          && u.searchParams.get('q')===new URL(location.href).searchParams.get('q');
+      } catch {return false;}
+    });
+  const search_sort=path==='/search' && activeSearchTabs.length===1
+    ? (/^(?:recent|latest|newest|mới nhất|gần đây)$/i.test(activeSearchTabs[0].textContent.trim())
+        && new URL(activeSearchTabs[0].getAttribute('href'),location.href).searchParams.get('filter')==='recent'
+        ? 'recent' : 'unknown') : 'unknown';
   const profile=/^\/@[A-Za-z0-9_.]+\/?$/.test(path)
     ? {url:location.origin+path, text:(document.querySelector('meta[property="og:description"]')?.getAttribute('content')||'').slice(0,4000)} : null;
   const blocked=!!document.querySelector('input[type="password"],iframe[src*="captcha"]')
@@ -45,7 +56,7 @@ READ_SURFACE = r"""() => {
   const authenticated=!!document.querySelector('a[href^="/@"] [aria-label="Profile"]');
   const unavailable=!posts.length && [...document.querySelectorAll('h1,h2,[role="heading"]')]
     .some(e=>shown(e) && /this (?:post|content) (?:isn't|is not) available|bài viết này không|nội dung này không (?:hiển thị|khả dụng)/i.test(e.textContent||''));
-  return {url:location.href, posts, controls, profile, blocked, authenticated, unavailable,
+  return {url:location.href, posts, controls, profile, blocked, authenticated, unavailable, search_sort,
     sorting:[...document.querySelectorAll('button,[role="button"]')].filter(shown)
       .find(e=>e.querySelector('[aria-label="Sort"]'))?.textContent?.trim().slice(0,40)||'unknown'};
 }"""

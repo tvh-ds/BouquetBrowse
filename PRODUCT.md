@@ -44,3 +44,6 @@ After the twenty-conversation workflow proof and 100-image mixed-bouquet benchma
 
 ## Accessibility & Inclusion
 Keyboard access, visible focus, accessible names, semantic controls, reduced motion, responsive mobile comparisons, Vietnamese diacritics and localization.
+
+## Temporary discovery scope — 2 November 2026
+The operator selected recent keyword post search only. The local pilot uses DISCOVERY_MODE=recent_search; opened posts/replies remain in scope, FYP/profile navigation and standalone refresh entry points are deferred. See docs/RECENT-SEARCH.md. Existing attribution, privacy and publication rules remain in force.

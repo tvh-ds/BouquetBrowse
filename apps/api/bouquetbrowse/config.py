@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     media_dir: Path = ROOT / ".data" / "media"
     public_origin: str = "http://localhost:3000"
     discovery_enabled: bool = False
+    discovery_mode: str = "full"
     recurring_enabled: bool = False
     discovery_profile_dir: Path = ROOT / ".data" / "threads-profile"
     planner_model: str = "gpt-6.1-sol"
@@ -53,6 +54,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_environment(self):
+        if self.discovery_mode not in {"full", "recent_search"}:
+            raise ValueError("DISCOVERY_MODE must be full or recent_search")
         if self.app_mode not in {"demo", "pilot"}:
             raise ValueError("APP_MODE must be demo or pilot")
         if self.app_mode == "pilot":

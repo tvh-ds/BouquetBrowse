@@ -5,7 +5,7 @@ import re
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal
-from urllib.parse import urlencode, urljoin, urlsplit
+from urllib.parse import parse_qs, urlencode, urljoin, urlsplit
 from uuid import uuid4
 
 from pydantic import Field
@@ -133,7 +133,10 @@ class BrowserAction(StrictModel):
 
 
 class BrowserController:
-    def __init__(self, page):
+    def __init__(self, page, mode="full"):
+        if mode not in {"full", "recent_search"}:
+            raise ValueError("Unknown browser discovery mode")
+        self.mode = mode
         self.page = page
         self.targets = {}
         self.version = None
@@ -152,7 +155,36 @@ class BrowserController:
             raise CapabilityError(
                 "Sign in directly in the dedicated Threads profile; collection is paused.", "browser_auth_required"
             )
+        self.check_scope(self.page.url)
+        if (
+            self.mode == "recent_search"
+            and urlsplit(self.page.url).path == "/search"
+            and surface.get("search_sort") != "recent"
+        ):
+            raise CapabilityError(
+                "Recent search ordering is not confirmed by the visible Threads tab.", "search_sort_unverified"
+            )
         return surface
+
+    def check_scope(self, url):
+        navigation_url(url)
+        if self.mode != "recent_search":
+            return
+        parsed = urlsplit(url)
+        query = parse_qs(parsed.query)
+        if POST.fullmatch(parsed.path):
+            return
+        if (
+            parsed.path == "/search"
+            and query.get("filter") == ["recent"]
+            and query.get("serp_type") == ["default"]
+            and len(query.get("q", [])) == 1
+        ):
+            if parse_qs(urlsplit(search_url(query["q"][0])).query)["q"] == query["q"]:
+                return
+        raise CapabilityError(
+            "Recent-search mode permits only recent searches and their posts/replies.", "navigation_out_of_scope"
+        )
 
     def observe(self, flower_only=False):
         surface = self.read()
@@ -171,7 +203,8 @@ class BrowserController:
 
         for post in posts[:20]:
             target("open_post", url=post.url)
-            target("visit_profile", url=f"https://www.threads.com/@{post.username}")
+            if self.mode == "full":
+                target("visit_profile", url=f"https://www.threads.com/@{post.username}")
         for control in surface.get("controls", []):
             label = control["label"]
             card_match = POST.fullmatch(urlsplit(urljoin(surface["url"], control.get("card") or "")).path)
@@ -179,8 +212,9 @@ class BrowserController:
             if re.match(r"^(?:view|show|load|see|xem|hiển thị|tải)", label, re.I):
                 target("expand_replies", label=label, card=card)
             elif control["role"] == "menuitem":
-                target("set_sort", label=label, card=None)
-            else:
+                if self.mode == "full":
+                    target("set_sort", label=label, card=None)
+            elif self.mode == "full":
                 target("open_sort", label=label, card=None)
         target("scroll")
         if self.history:
@@ -191,13 +225,17 @@ class BrowserController:
             "url": surface["url"],
             "posts": [p.model_dump(mode="json") for p in posts],
             "targets": self.targets,
-            "sorting": surface.get("sorting", "unknown"),
+            "sorting": "recent"
+            if urlsplit(surface["url"]).path == "/search" and surface.get("search_sort") == "recent"
+            else surface.get("sorting", "unknown"),
             "profile": profile if business else None,
+            "search_sort": surface.get("search_sort", "unknown"),
             "partial": True,
             "remaining_expansions": sum(t["kind"] == "expand_replies" for t in self.targets.values()),
         }
 
     def navigate(self, url):
+        self.check_scope(url)
         self.page.goto(navigation_url(url), wait_until="domcontentloaded", timeout=20000)
         self.page.locator("body").wait_for(timeout=10000)
         try:
@@ -209,8 +247,19 @@ class BrowserController:
                 "The Threads page did not expose a supported readable layout.", "browser_layout_unavailable"
             ) from None
         self.navigated = True
+        if self.mode == "recent_search" and urlsplit(self.page.url).path == "/search":
+            try:
+                self.page.locator('a[aria-current="page"][href*="filter=recent"]').wait_for(
+                    state="visible", timeout=10000
+                )
+            except Exception:
+                raise CapabilityError("Recent search tab did not become active.", "search_sort_unverified") from None
 
     def execute(self, action: BrowserAction):
+        if self.mode == "recent_search" and action.action in {"visit_profile", "open_sort", "set_sort"}:
+            raise CapabilityError(
+                "Profile and sort navigation are disabled in recent-search mode.", "navigation_out_of_scope"
+            )
         if action.observation_version != self.version or digest(self.read()) != self.signature:
             raise CapabilityError("The page changed; observe again before acting.", "stale_observation")
         if action.action == "finish":
@@ -282,7 +331,7 @@ class BrowserController:
 
 
 @contextmanager
-def open_browser(directory, headless=True):
+def open_browser(directory, headless=True, mode="full"):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -319,6 +368,6 @@ def open_browser(directory, headless=True):
         context.route("**/*", restrict)
         page = context.pages[0] if context.pages else context.new_page()
         try:
-            yield BrowserController(page)
+            yield BrowserController(page, mode=mode)
         finally:
             context.close()

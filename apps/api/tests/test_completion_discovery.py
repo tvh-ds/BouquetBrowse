@@ -88,9 +88,11 @@ def test_frontier_balancing_and_independent_seller_priority(db):
     second = add_frontier(db, "profile", "https://www.threads.com/@new_seller")
     first.due_at = second.due_at = utcnow() - timedelta(hours=1)
     db.flush()
-    assert select_frontier(db, SimpleNamespace(id="execution")).id == second.id
+    assert (
+        select_frontier(db, SimpleNamespace(id="execution", configuration={"discovery_mode": "full"})).id == second.id
+    )
     first.evidence_gaps = ["missing_price"]
-    assert select_frontier(db, SimpleNamespace(id="execution")).id == first.id
+    assert select_frontier(db, SimpleNamespace(id="execution", configuration={"discovery_mode": "full"})).id == first.id
     # More than 100 old refresh records cannot hide a due FYP/search queue.
     for i in range(101):
         add_frontier(db, "post", f"https://www.threads.com/@covered/post/p{i}", queue="refresh")
@@ -109,7 +111,7 @@ def test_frontier_balancing_and_independent_seller_priority(db):
         )
     )
     db.flush()
-    assert select_frontier(db, SimpleNamespace(id="execution")).id == fyp.id
+    assert select_frontier(db, SimpleNamespace(id="execution", configuration={"discovery_mode": "full"})).id == fyp.id
 
 
 def test_summary_omits_tentative_components():
