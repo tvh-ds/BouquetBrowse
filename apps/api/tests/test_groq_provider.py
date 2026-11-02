@@ -20,7 +20,7 @@ def groq_settings(**kwargs):
     return Settings(_env_file=None, model_provider="groq", groq_api_key="fictional-groq-key", **kwargs)
 
 
-def fake_provider(monkeypatch, *, invalid=False, status=200, parsed=None):
+def fake_provider(monkeypatch, *, invalid=False, status=200, parsed=None, finish_reason="stop"):
     requests = []
     sdk = openai.OpenAI
 
@@ -42,7 +42,7 @@ def fake_provider(monkeypatch, *, invalid=False, status=200, parsed=None):
                 "choices": [
                     {
                         "index": 0,
-                        "finish_reason": "stop",
+                        "finish_reason": finish_reason,
                         "message": {"role": "assistant", "content": json.dumps(value)},
                     }
                 ],

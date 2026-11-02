@@ -39,3 +39,5 @@ The newer conversation/discovery delivery is tracked in THREADS-DISCOVERY.md. It
 Initial baseline is one coordinated module branch codex/00-bootstrap. Subsequent modules must replace fixtures and close these external-validation gaps with measured evidence, not relabel demonstrations as live capability.
 
 Planner reliability: candidate selection, correction budgets, deferred-task events, semantic receipt identity and crash-safe terminal action receipts are implemented with synthetic regression coverage. See PLANNER-RELIABILITY.md. Real post-change performance remains to be measured.
+
+Provider diagnostics: allowlisted failure metadata, admin-only retrieval, safe job/log summaries, retention and unchanged uncertain-call replay controls are implemented; see PROVIDER-DIAGNOSTICS.md. Validation uses fake providers; no automatic live replay.

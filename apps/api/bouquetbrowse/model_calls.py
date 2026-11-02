@@ -1,5 +1,6 @@
 """Durable paid-call receipts. A timeout is not permission to bill again."""
 
+import logging
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -205,14 +206,28 @@ def invoke_once(model, request, invoke, reservation_usd=0.10, *, provider=None):
         result, usage, actual_usd = invoke()
         usage = {**usage, "latency_ms": round((time.monotonic() - started) * 1000)}
     except Exception as exc:
+        from .provider_diagnostics import failure_diagnostics, failure_summary
+        from .retention import receipt_permitted
+
+        diagnostics = failure_diagnostics(exc, round((time.monotonic() - started) * 1000))
         with database.SessionLocal() as db:
             call = db.get(ModelCall, call_id)
-            call.state = "removed" if call.state == "removed" else "uncertain"
+            permitted = receipt_permitted(db, call) and aware(call.retention_until) > utcnow()
+            call.state = "uncertain" if permitted else "removed"
+            call.usage = {"failure": diagnostics} if permitted else {}
             db.get(CostEntry, call.cost_id).state = "uncertain"
             db.commit()
+        logging.getLogger(__name__).warning(
+            "model_call_uncertain call_id=%s category=%s http_status=%s",
+            call_id,
+            diagnostics["category"],
+            diagnostics["http_status"],
+        )
         raise CapabilityError(
-            "Paid request outcome is uncertain; reservation retained. Explicit replay required.", "call_replay_required"
-        ) from exc
+            f"Paid request outcome is uncertain ({failure_summary(diagnostics)}); "
+            f"reservation retained. Explicit replay required. Call ID: {call_id}",
+            "call_replay_required",
+        ) from None
     with database.SessionLocal() as db:
         call = db.get(ModelCall, call_id)
         from .retention import receipt_permitted
