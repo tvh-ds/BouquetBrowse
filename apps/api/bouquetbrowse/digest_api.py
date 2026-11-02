@@ -113,6 +113,8 @@ def digest(day: date, db: Database):
 
 @router.get("/v1/admin/model-calls", dependencies=[Depends(require_admin)])
 def calls(db: Database):
+    from .provider_diagnostics import public_diagnostics
+
     rows = db.scalars(select(ModelCall).order_by(ModelCall.created_at.desc()).limit(100))
     return {
         "items": [
@@ -126,6 +128,7 @@ def calls(db: Database):
                 "replay_authorized": row.replay_authorized,
                 "amount_microusd": db.get(CostEntry, row.cost_id).amount_microusd,
                 "created_at": row.created_at,
+                "diagnostics": public_diagnostics(row.usage),
             }
             for row in rows
         ]

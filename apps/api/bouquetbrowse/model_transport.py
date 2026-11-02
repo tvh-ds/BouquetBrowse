@@ -82,8 +82,12 @@ def structured_response(settings, *, model, input, text_format, max_output_token
         max_completion_tokens=max_output_tokens,
     )
     choice = response.choices[0]
-    if choice.finish_reason != "stop" or choice.message.parsed is None or choice.message.refusal:
-        raise CapabilityError("Groq returned a refused or incomplete structured response.", "extraction_incomplete")
+    if choice.message.refusal or choice.finish_reason == "content_filter":
+        raise CapabilityError("Provider refused the structured response.", "model_response_refused")
+    if choice.finish_reason == "length":
+        raise CapabilityError("Provider response exceeded the output limit.", "model_response_truncated")
+    if choice.finish_reason != "stop" or choice.message.parsed is None:
+        raise CapabilityError("Provider returned an incomplete structured response.", "model_response_invalid")
     # Revalidate even SDK-parsed values; schemas alone never establish grounding.
     parsed = text_format.model_validate(choice.message.parsed)
     raw_usage = response.usage.model_dump() if response.usage else {}

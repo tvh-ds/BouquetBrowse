@@ -209,6 +209,8 @@ def expire(db, now=None):
             setattr(row, field, replacement)
             if isinstance(row, RecognitionRecord):
                 row.dependencies = {}
+            if isinstance(row, ModelCall):
+                row.usage = {key: value for key, value in row.usage.items() if key != "failure"}
     for region in db.scalars(select(ImageRegion).where(ImageRegion.retention_until <= now)):
         region.bounds, region.evidence, region.state = [], {}, "expired"
     db.execute(delete(SellerFact).where(SellerFact.retention_until <= now))
