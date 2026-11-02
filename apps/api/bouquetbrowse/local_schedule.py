@@ -117,7 +117,7 @@ def tick(db, now=None):
                         "extraction_model": settings.active_extraction_model,
                         "escalation_model": settings.active_escalation_model,
                         "taxonomy_version": control.configuration.get("taxonomy_version", "flowers-v2"),
-                        "prompt_version": "discovery-v1",
+                        "prompt_version": "discovery-menu-v2",
                         "schema_version": "conversation-v1",
                         "policy_ref": control.policy["policy_ref"],
                         "budget_usd": settings.discovery_run_budget_usd,

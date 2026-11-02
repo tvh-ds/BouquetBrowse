@@ -20,7 +20,7 @@ def groq_settings(**kwargs):
     return Settings(_env_file=None, model_provider="groq", groq_api_key="fictional-groq-key", **kwargs)
 
 
-def fake_provider(monkeypatch, *, invalid=False, status=200):
+def fake_provider(monkeypatch, *, invalid=False, status=200, parsed=None):
     requests = []
     sdk = openai.OpenAI
 
@@ -29,7 +29,7 @@ def fake_provider(monkeypatch, *, invalid=False, status=200):
         requests.append((request, body))
         if status != 200:
             return httpx.Response(status, json={"error": {"message": "fictional provider error"}})
-        value = {"action": "finish", "observation_version": "", "target": None, "query": None}
+        value = parsed or {"action": "finish", "observation_version": "", "target": None, "query": None}
         if invalid:
             value["action"] = "execute_arbitrary_script"
         return httpx.Response(

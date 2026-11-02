@@ -8,7 +8,7 @@ from langgraph.types import interrupt
 
 from .providers import CapabilityError
 
-BEHAVIOR_VERSION = "threads-graphs-v10"
+BEHAVIOR_VERSION = "threads-graphs-v11"
 
 
 class GraphState(TypedDict, total=False):

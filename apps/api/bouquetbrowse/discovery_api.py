@@ -119,7 +119,7 @@ def start_run(body: RunBody, db: Database, idempotency_key: Annotated[str | None
             "extraction_model": settings.active_extraction_model,
             "escalation_model": settings.active_escalation_model,
             "taxonomy_version": row.configuration.get("taxonomy_version", "flowers-v2"),
-            "prompt_version": "discovery-v1",
+            "prompt_version": "discovery-menu-v2",
             "schema_version": "conversation-v1",
             "policy_ref": row.policy["policy_ref"],
             "manual": True,

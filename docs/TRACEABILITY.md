@@ -37,3 +37,5 @@ The newer conversation/discovery delivery is tracked in THREADS-DISCOVERY.md. It
 | Checkout, learned ranking, forecasting, training, warehouse | Deferred |
 
 Initial baseline is one coordinated module branch codex/00-bootstrap. Subsequent modules must replace fixtures and close these external-validation gaps with measured evidence, not relabel demonstrations as live capability.
+
+Planner reliability: candidate selection, correction budgets, deferred-task events, semantic receipt identity and crash-safe terminal action receipts are implemented with synthetic regression coverage. See PLANNER-RELIABILITY.md. Real post-change performance remains to be measured.
