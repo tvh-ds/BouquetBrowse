@@ -20,7 +20,14 @@ from .model_calls import CallScope, call_scope, invoke_once
 from .model_transport import require_model, structured_response
 from .models import CostEntry, PostVersion, SourceAccount, SourcePost
 from .pipeline import digest
-from .planner import PROMPT_VERSION, action_menu, evidence_excerpt, resolve_selection, selection_schema
+from .planner import (
+    PROMPT_VERSION,
+    action_menu,
+    choose_recent_action,
+    evidence_excerpt,
+    resolve_selection,
+    selection_schema,
+)
 from .providers import CapabilityError, billed_amount
 from .runtime_models import (
     ActionReceipt,
@@ -448,6 +455,15 @@ class DiscoveryServices:
             resume_url = execution.progress.get("resume_url") or frontier.target
             if name == "plan":
                 observation = db.get(BrowserObservation, state["observation_id"])
+                if execution.configuration.get("discovery_mode") == "recent_search":
+                    completed = db.scalars(
+                        select(ActionReceipt).where(
+                            ActionReceipt.execution_id == execution.id, ActionReceipt.state == "completed"
+                        )
+                    ).all()
+                    self.action = choose_recent_action(observation.snapshot, observation.id, completed)
+                    db.commit()
+                    return {}
                 versions = db.scalars(
                     select(PostVersion)
                     .join(CaptureMember, CaptureMember.version_id == PostVersion.id)
