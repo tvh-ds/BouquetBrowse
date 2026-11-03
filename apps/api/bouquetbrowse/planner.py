@@ -1,6 +1,7 @@
 """Controller-owned action menus and bounded planning context. No browser I/O."""
 
 import re
+from urllib.parse import urlsplit
 
 from pydantic import Field, create_model
 
@@ -8,6 +9,25 @@ from .browser import BrowserAction, search_url
 from .schemas import StrictModel
 
 PROMPT_VERSION = "discovery-menu-v2"
+
+
+def choose_recent_action(snapshot, observation_id, completed):
+    """Follow issued targets in Recent result order, without a provider call."""
+    url = snapshot["url"]
+    search = urlsplit(url).path == "/search"
+    opened = {r.continuation.get("url") for r in completed if r.action == "open_post"}
+    expanded = any(r.action == "expand_replies" and r.continuation.get("url") == url for r in completed)
+    targets = snapshot["targets"]
+    for kind in ("open_post", "scroll") if search else ("expand_replies", "back"):
+        for target, data in targets.items():
+            if data["kind"] != kind:
+                continue
+            if kind == "open_post" and (not data.get("url") or data["url"] in opened):
+                continue
+            if kind == "expand_replies" and expanded:
+                continue
+            return BrowserAction(action=kind, target=target, observation_version=observation_id)
+    return BrowserAction(action="finish", observation_version=observation_id)
 
 
 def action_menu(snapshot, queries):

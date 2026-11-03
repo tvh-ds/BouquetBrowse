@@ -38,3 +38,5 @@ navigation/menu scope, visible Recent verification and rejection of URL-only,
 wrong-query or unselected indicators. A bounded read of the signed-in live search
 UI confirmed that its Recent link currently uses `aria-current="page"` and
 `filter=recent`; this establishes the observed control, not end-to-end quality.
+
+Recent-search navigation in threads-graphs-v13 is deterministic: open unseen issued posts in result order, expand replies at most once per post URL, return to results, and scroll when no unseen target remains. Existing action, stale-page and no-yield limits still apply. Manual recent-search runs do not need a model key; downstream bouquet interpretation remains separately model-dependent. No uncertain provider call is replayed by this change.

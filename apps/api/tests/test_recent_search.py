@@ -1,4 +1,5 @@
 from html import escape
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import func, select
@@ -7,9 +8,29 @@ from bouquetbrowse.browser import BrowserAction, BrowserController, search_url
 from bouquetbrowse.config import Settings
 from bouquetbrowse.discovery import add_frontier, select_frontier
 from bouquetbrowse.executions import create_execution
-from bouquetbrowse.planner import action_menu
+from bouquetbrowse.planner import action_menu, choose_recent_action
 from bouquetbrowse.providers import CapabilityError
 from bouquetbrowse.runtime_models import DiscoveryFrontier
+
+
+def test_recent_navigation_uses_issued_targets_and_skips_opened_posts():
+    first = "https://www.threads.com/@fictional/post/first"
+    second = "https://www.threads.com/@fictional/post/second"
+    snapshot = {
+        "url": search_url("hoa Hanoi"),
+        "targets": {
+            "profile": {"kind": "visit_profile"},
+            "first": {"kind": "open_post", "url": first},
+            "second": {"kind": "open_post", "url": second},
+        },
+    }
+    opened = SimpleNamespace(action="open_post", continuation={"url": first})
+    assert choose_recent_action(snapshot, "obs", []).target == "first"
+    assert choose_recent_action(snapshot, "obs", [opened]).target == "second"
+    post = {"url": first, "targets": {"reply": {"kind": "expand_replies"}, "back": {"kind": "back"}}}
+    assert choose_recent_action(post, "obs", []).action == "expand_replies"
+    expanded = SimpleNamespace(action="expand_replies", continuation={"url": first})
+    assert choose_recent_action(post, "obs", [expanded]).action == "back"
 
 
 def test_recent_mode_cannot_silently_resume_as_full(db, monkeypatch):

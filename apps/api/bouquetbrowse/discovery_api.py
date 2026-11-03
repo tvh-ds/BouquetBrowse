@@ -103,7 +103,8 @@ def start_run(body: RunBody, db: Database, idempotency_key: Annotated[str | None
         raise CapabilityError("Browser discovery requires PostgreSQL.", "postgres_required")
     from .model_transport import require_model
 
-    require_model(settings, settings.active_planner_model, vision=True)
+    if settings.discovery_mode == "full":
+        require_model(settings, settings.active_planner_model, vision=True)
     if find_spec("playwright") is None:
         raise CapabilityError("Install the optional browser runtime and Chromium.", "browser_not_installed")
     row = settings_row(db)
