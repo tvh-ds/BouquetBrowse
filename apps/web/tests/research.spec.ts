@@ -318,9 +318,26 @@ test("health, conversation evidence and reviewed curation actions are connected"
   await expect(
     page.getByText("Remaining expansions: 3", { exact: false }),
   ).toBeVisible();
+  const captureRow = page
+    .locator("li")
+    .filter({
+      has: page.getByRole("button", {
+        name: "Inspect conversation",
+        exact: true,
+      }),
+    })
+    .last();
+  await expect(captureRow.locator("#capture-capture-fixture")).toBeVisible();
   await page
     .getByRole("button", { name: "Inspect offer images", exact: true })
     .click();
+  const image = captureRow.locator("#offer-offer-fixture img");
+  await expect(image).toBeVisible();
+  await expect
+    .poll(() =>
+      image.evaluate((element) => (element as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(0);
   await page
     .getByRole("button", { name: "Add to evaluation draft", exact: true })
     .click();
