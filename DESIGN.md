@@ -129,3 +129,5 @@ The frontmatter captures recurring radii: badges, buttons, search fields, image 
 - **Don't** replace the code-led contract with an invented approved comp.
 - **Don't** visually conflate recommendations with qualified price benchmarks or imply that review verifies inventory.
 - **Don't** generalize scoped review evidence into a whole-application accessibility or visual certification.
+
+**Inline conversation evidence.** Capture and offer controls expand their details directly below the selected row, with one open capture and one open offer at a time. Associated images load when their offer is expanded and provide an inline retry state if unavailable.

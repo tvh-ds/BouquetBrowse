@@ -244,3 +244,7 @@
     width: 100%;
   }
 }
+
+.rows > li.evidenceRow {
+  display: block;
+}
