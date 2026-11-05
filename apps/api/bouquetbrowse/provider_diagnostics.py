@@ -41,6 +41,8 @@ CODES = {
     "model_response_refused",
     "model_response_truncated",
     "model_response_invalid",
+    "local_input_invalid",
+    "local_runtime_unavailable",
 }
 
 
@@ -91,6 +93,7 @@ def failure_diagnostics(exc, elapsed_ms):
             "model_response_refused": "response_refused",
             "model_response_truncated": "response_truncated",
             "model_response_invalid": "response_validation",
+            "local_input_invalid": "invalid_request",
         }.get(code, "application_error")
     return {
         "category": category,
