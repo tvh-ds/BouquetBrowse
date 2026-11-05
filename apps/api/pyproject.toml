@@ -26,6 +26,7 @@ dev = ["pytest>=8,<10", "pytest-cov>=6,<8", "ruff>=0.11,<1"]
 
 [project.optional-dependencies]
 vision = ["torch>=2.6,<3", "transformers>=4.51,<6"]
+local-model = ["openvino-genai==2026.4.1.0; sys_platform == 'win32' and platform_machine == 'AMD64'"]
 browser = [
     "playwright>=1.60,<2",
 ]

@@ -57,7 +57,10 @@ def settle_cost(entry_id, amount, usage=None):
 
 
 def billed_amount(model, usage, reservation, provider=None):
-    rates = RATES.get(provider or get_settings().model_provider, {})
+    selected = provider or get_settings().model_provider
+    if selected == "openvino":
+        return 0
+    rates = RATES.get(selected, {})
     if model not in rates or not usage or "input_tokens" not in usage or "output_tokens" not in usage:
         return reservation
     input_rate, output_rate = rates[model]

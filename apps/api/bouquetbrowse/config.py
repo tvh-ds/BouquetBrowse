@@ -6,6 +6,7 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[3]
+OPENVINO_MODEL = "openvino/qwen3-vl-4b-instruct-int4-3ffb805"
 
 
 class Settings(BaseSettings):
@@ -24,6 +25,8 @@ class Settings(BaseSettings):
     groq_planner_model: str = "qwen/qwen3.8-27b"
     groq_extraction_model: str = "qwen/qwen3.8-27b"
     groq_escalation_model: str = "qwen/qwen3.8-27b"
+    openvino_model_dir: Path | None = None
+    openvino_device: str = "GPU"
     extraction_model: str = "gpt-6-luna"
     escalation_model: str = "gpt-6.1-sol"
     embedding_model: str = "text-embedding-3-small"
@@ -69,8 +72,10 @@ class Settings(BaseSettings):
                 raise ValueError("Pilot requires a unique INTERNAL_API_TOKEN of at least 32 characters")
             if not self.public_origin.startswith("https://"):
                 raise ValueError("Pilot requires an HTTPS PUBLIC_ORIGIN")
-        if self.model_provider not in {"openai", "groq"}:
-            raise ValueError("MODEL_PROVIDER must be openai or groq")
+        if self.model_provider not in {"openai", "groq", "openvino"}:
+            raise ValueError("MODEL_PROVIDER must be openai, groq or openvino")
+        if self.openvino_device not in {"CPU", "GPU"}:
+            raise ValueError("OPENVINO_DEVICE must be CPU or GPU")
         if self.extraction_provider not in {"rules", "openai", "groq"}:
             raise ValueError("Unknown extraction provider")
         if self.extraction_provider != "rules" and self.extraction_provider != self.model_provider:
@@ -85,18 +90,33 @@ class Settings(BaseSettings):
 
     @property
     def model_configured(self):
+        if self.model_provider == "openvino":
+            return self.openvino_model_dir is not None and all(
+                (self.openvino_model_dir / filename).is_file()
+                for filename in ("openvino_language_model.xml", "openvino_language_model.bin")
+            )
         return bool(self.groq_api_key if self.model_provider == "groq" else self.openai_api_key)
 
     @property
+    def openvino_model(self):
+        return f"{OPENVINO_MODEL}-{self.openvino_device.lower()}"
+
+    @property
     def active_planner_model(self):
+        if self.model_provider == "openvino":
+            return self.openvino_model
         return self.groq_planner_model if self.model_provider == "groq" else self.planner_model
 
     @property
     def active_extraction_model(self):
+        if self.model_provider == "openvino":
+            return self.openvino_model
         return self.groq_extraction_model if self.model_provider == "groq" else self.extraction_model
 
     @property
     def active_escalation_model(self):
+        if self.model_provider == "openvino":
+            return self.openvino_model
         return self.groq_escalation_model if self.model_provider == "groq" else self.escalation_model
 
 

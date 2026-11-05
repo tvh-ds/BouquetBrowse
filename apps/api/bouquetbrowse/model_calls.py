@@ -78,7 +78,8 @@ def reserve_entry(db, model, amount, provider=None):
     from .providers import CapabilityError
 
     reserved = microusd(amount)
-    if reserved <= 0:
+    selected = provider or get_settings().model_provider
+    if reserved == 0 and selected != "openvino":
         raise ValueError("A positive reservation is required")
     lock_spending(db)
     first = utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -88,10 +89,10 @@ def reserve_entry(db, model, amount, provider=None):
             CostEntry.state.in_(["reserved", "settled", "uncertain"]),
         )
     )
-    if spent + reserved > microusd(get_settings().monthly_model_budget_usd):
+    if reserved and spent + reserved > microusd(get_settings().monthly_model_budget_usd):
         raise CapabilityError("Monthly model budget reached. Review spending before retrying.", "budget_exhausted")
     entry = CostEntry(
-        provider=provider or get_settings().model_provider,
+        provider=selected,
         model=model,
         amount_usd=reserved / 1_000_000,
         amount_microusd=reserved,
@@ -117,6 +118,9 @@ def invoke_once(model, request, invoke, reservation_usd=0.10, *, provider=None):
     from .providers import CapabilityError
 
     provider = provider or get_settings().model_provider
+    local = provider == "openvino"
+    if local:
+        reservation_usd = 0
     request_hash = request_identity(model, request, provider)
     scope = CURRENT_SCOPE.get() or CallScope(f"request:{request_hash}", microusd(reservation_usd))
     blocked = None
@@ -155,7 +159,7 @@ def invoke_once(model, request, invoke, reservation_usd=0.10, *, provider=None):
                 return shared.result, shared.usage
             if shared.state in {"dispatched", "uncertain", "failed"} and not shared.replay_authorized:
                 raise CapabilityError(
-                    "Identical paid work is in flight or uncertain in another execution.", "call_replay_required"
+                    "Identical model work is in flight or uncertain in another execution.", "call_replay_required"
                 )
         if previous and previous.state in {"dispatched", "uncertain", "failed"} and not previous.replay_authorized:
             previous.state = "uncertain" if previous.state == "dispatched" else previous.state
@@ -171,7 +175,7 @@ def invoke_once(model, request, invoke, reservation_usd=0.10, *, provider=None):
                     .join(ModelCall, ModelCall.cost_id == CostEntry.id)
                     .where(ModelCall.scope_key == scope.key)
                 )
-                if spent + microusd(reservation_usd) > scope.limit_microusd:
+                if not local and spent + microusd(reservation_usd) > scope.limit_microusd:
                     raise CapabilityError("Execution model allowance reached.", "scope_budget_exhausted")
                 cost = reserve_entry(db, model, reservation_usd, provider)
                 call = ModelCall(
@@ -200,7 +204,7 @@ def invoke_once(model, request, invoke, reservation_usd=0.10, *, provider=None):
             call.state = "dispatched"
             db.commit()
     if blocked:
-        raise CapabilityError("An uncertain paid call requires explicit replay in admin.", "call_replay_required")
+        raise CapabilityError("An uncertain model call requires explicit replay in admin.", "call_replay_required")
     started = time.monotonic()
     try:
         result, usage, actual_usd = invoke()
@@ -223,9 +227,13 @@ def invoke_once(model, request, invoke, reservation_usd=0.10, *, provider=None):
             diagnostics["category"],
             diagnostics["http_status"],
         )
+        outcome = (
+            f"Local inference outcome is uncertain ({failure_summary(diagnostics)})."
+            if local
+            else f"Paid request outcome is uncertain ({failure_summary(diagnostics)}); reservation retained."
+        )
         raise CapabilityError(
-            f"Paid request outcome is uncertain ({failure_summary(diagnostics)}); "
-            f"reservation retained. Explicit replay required. Call ID: {call_id}",
+            f"{outcome} Explicit replay required. Call ID: {call_id}",
             "call_replay_required",
         ) from None
     with database.SessionLocal() as db:
@@ -236,7 +244,7 @@ def invoke_once(model, request, invoke, reservation_usd=0.10, *, provider=None):
         # Cancellation can retain an audit receipt; deletion must not resurrect content.
         call.result, call.usage, call.state = (result, usage, "succeeded") if permitted else (None, {}, "removed")
         cost = db.get(CostEntry, call.cost_id)
-        cost.amount_microusd = microusd(actual_usd)
+        cost.amount_microusd = 0 if local else microusd(actual_usd)
         cost.amount_usd, cost.usage, cost.state = cost.amount_microusd / 1_000_000, usage, "settled"
         db.commit()
     if not permitted:

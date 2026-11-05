@@ -23,9 +23,11 @@ def require_model(settings, model, *, vision=False, provider=None):
             "Provider changed; explicitly reprocess with the current configuration.", "provider_changed"
         )
     if not settings.model_configured:
-        field = "GROQ_API_KEY" if selected == "groq" else "OPENAI_API_KEY"
+        field = {"groq": "GROQ_API_KEY", "openai": "OPENAI_API_KEY", "openvino": "OPENVINO_MODEL_DIR"}[selected]
         raise CapabilityError(f"Configure {field} for the selected model provider.", "model_not_configured")
-    if model not in RATES[selected]:
+    if selected == "openvino" and model == settings.openvino_model:
+        return selected
+    if model not in RATES.get(selected, {}):
         raise CapabilityError("Model has no supported transport and spending contract.", "unsupported_model")
     if vision and selected == "groq" and model != GROQ_VISION_MODEL:
         raise CapabilityError("Choose the supported Groq vision model for image requests.", "vision_not_supported")
@@ -37,7 +39,8 @@ def image_limit(settings=None, configuration=None):
         from .config import get_settings
 
         settings = get_settings()
-    return 3 if (configuration or {}).get("model_provider", settings.model_provider) == "groq" else 4
+    provider = (configuration or {}).get("model_provider", settings.model_provider)
+    return {"groq": 3, "openvino": 1}.get(provider, 4)
 
 
 def structured_response(settings, *, model, input, text_format, max_output_tokens, timeout=40, provider=None):
@@ -55,6 +58,10 @@ def structured_response(settings, *, model, input, text_format, max_output_token
     selected = require_model(settings, model, vision=bool(images), provider=provider)
     if images > image_limit(settings):
         raise CapabilityError("Request exceeds the selected provider's image limit.", "image_limit")
+    if selected == "openvino":
+        from .local_model import generate
+
+        return generate(settings, input, text_format, max_output_tokens)
     if selected == "openai":
         return OpenAI(api_key=settings.openai_api_key, timeout=timeout, max_retries=0).responses.parse(
             model=model, input=input, text_format=text_format, store=False, max_output_tokens=max_output_tokens
